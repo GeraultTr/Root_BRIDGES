@@ -25,9 +25,9 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
             t1 = time.time()
             logger()
             t2 = time.time()
-            logger.run_and_monitor_model_step()
+            #logger.run_and_monitor_model_step()
             t3 = time.time()
-            #root_bridges.run()
+            root_bridges.run()
             global_performance = pd.concat([global_performance, pd.DataFrame({"time": [root_bridges.time], "log_time": [t2 - t1], "run_time": [t3 - t2], "total_time": [t3 - t1]})])
 
     except (ZeroDivisionError, KeyboardInterrupt):
