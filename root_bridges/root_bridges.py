@@ -30,7 +30,7 @@ class Model(CompositeModel):
     4. Use Model.run() in a for loop to perform the computations of a time step on the passed MTG File
     """
 
-    def __init__(self, time_step: int, scenario: dict):
+    def __init__(self, time_step: int, **scenario):
         """
         DESCRIPTION
         ----------
