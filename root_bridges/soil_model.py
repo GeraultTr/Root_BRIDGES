@@ -46,8 +46,8 @@ class SoilModel(RhizoInputsSoilModel):
 
 
     #TP@state
-    def _C_mineralN_soil(self, C_mineralN_soil, volume_soil,mineralN_diffusion_from_roots, mineralN_diffusion_from_xylem, mineralN_uptake):
-        balance = C_mineralN_soil + (self.time_step_in_seconds / volume_soil) * (
+    def _C_mineralN_soil(self, C_mineralN_soil, water_volume, mineralN_diffusion_from_roots, mineralN_diffusion_from_xylem, mineralN_uptake):
+        balance = C_mineralN_soil + (self.time_step_in_seconds / water_volume) * (
             mineralN_diffusion_from_roots
             + mineralN_diffusion_from_xylem
             - mineralN_uptake
@@ -56,8 +56,8 @@ class SoilModel(RhizoInputsSoilModel):
         return balance
 
     #TP@state
-    def _C_amino_acids_soil(self, C_amino_acids_soil, volume_soil, amino_acids_diffusion_from_roots, amino_acids_diffusion_from_xylem, amino_acids_uptake):
-        balance = C_amino_acids_soil + (self.time_step_in_seconds / volume_soil) * (
+    def _C_amino_acids_soil(self, C_amino_acids_soil, water_volume, amino_acids_diffusion_from_roots, amino_acids_diffusion_from_xylem, amino_acids_uptake):
+        balance = C_amino_acids_soil + (self.time_step_in_seconds / water_volume) * (
             amino_acids_diffusion_from_roots
             + amino_acids_diffusion_from_xylem
             - amino_acids_uptake
