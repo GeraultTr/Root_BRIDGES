@@ -145,6 +145,4 @@ SoilModel:
     struct_mass:
       struct_mass: 1.0
   RootWaterModel: {}
-  SoilModel:
-    root_exchange_surface:
-      root_exchange_surface: 1.0
+  SoilModel: {}

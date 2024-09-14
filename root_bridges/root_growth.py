@@ -135,7 +135,7 @@ class RootGrowthModelCoupled(RootGrowthModel):
                 potential_elongation = self.EL * 2. * radius * elongation_time_in_seconds
                 elongation = potential_elongation * michaelis_menten_limitation
             else:
-                print("No elongation, negative concentrations!! ", C_hexose_root, element.AA)
+                print(f"For element {element.index()}, no elongation, negative concentrations!! ", C_hexose_root, element.AA)
                 elongation = 0.
         
         # We calculate the new potential length corresponding to this elongation:
