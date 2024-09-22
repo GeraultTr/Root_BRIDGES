@@ -64,6 +64,7 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
         # Before any other operation, we apply the provided scenario by changing default parameters and initialization
         self.apply_scenario(**scenario)
         self.link_self_to_mtg()
+        self.initiate_heterogeneous_variables()
 
         self.previous_C_amount_in_the_root_system = self.compute_root_system_C_content()
 
@@ -153,9 +154,20 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
             if self.AA[vid] < 0.:
                 self.AA[vid] = 0.
 
-    #@totalrate
-    def _total_hexose_diffusion_from_phloem(self, hexose_diffusion_from_phloem, struct_mass):
-        """
-        Property computed to compare with shoot model unloading (umol of C.g-1 mstruc.h-1)
-        """
-        return 6 * 3600 * 1e6 * (sum(list(hexose_diffusion_from_phloem.values())) / sum(list(struct_mass.values())))
+    @rate
+    def _hexose_active_production_from_phloem(self, length, phloem_exchange_surface, C_sucrose_root, C_hexose_root,
+                                              hexose_consumption_by_growth, soil_temperature):
+        # We consider all the cases where no net exchange should be allowed:
+        if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
+            return 0
+
+        else:
+            max_unloading_rate = self.max_unloading_rate * (1 + hexose_consumption_by_growth /
+                                                            self.reference_rate_of_hexose_consumption_by_growth)
+            max_unloading_rate *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                                T_ref=self.phloem_unloading_T_ref,
+                                                                A=self.phloem_unloading_A,
+                                                                B=self.phloem_unloading_B,
+                                                                C=self.phloem_unloading_C)
+            return max(2. * max_unloading_rate * C_sucrose_root * phloem_exchange_surface / (
+                    self.Km_unloading + C_sucrose_root), 0)
