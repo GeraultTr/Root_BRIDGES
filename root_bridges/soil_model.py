@@ -46,13 +46,13 @@ class SoilModel(RhizoInputsSoilModel):
     C_mineralN_soil: float = declare(default=2.2, unit="mol.m-3", unit_comment="of equivalent mineral nitrogen", description="Mineral nitrogen concentration in soil", 
                                         value_comment="", references="Fischer et al. 1966", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
-    content_mineralN_soil: float = declare(default=2.2, unit="mol.g-1", unit_comment="of equivalent mineral nitrogen", description="Mineral nitrogen concentration in soil", 
+    content_mineralN_soil: float = declare(default=20e-6 / 14, unit="mol.g-1", unit_comment="of equivalent mineral nitrogen", description="Mineral nitrogen concentration in soil", 
                                         value_comment="", references="Fischer et al. 1966", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
     C_amino_acids_soil: float = declare(default=8.2e-3, unit="mol.m-3", unit_comment="of equivalent mineral nitrogen", description="Mineral nitrogen concentration in soil", 
                                         value_comment="", references="Fischer et al 2007, water leaching estimation", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
-    content_amino_acids_soil: float = declare(default=8.2e-3, unit="mol.m-3", unit_comment="of equivalent mineral nitrogen", description="Mineral nitrogen concentration in soil", 
+    content_amino_acids_soil: float = declare(default= 5 * 0.2e-6 /14, unit="mol.m-3", unit_comment="of equivalent mineral nitrogen", description="Mineral nitrogen concentration in soil", 
                                         value_comment="", references="Fischer et al 2007, water leaching estimation", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
 
@@ -101,13 +101,13 @@ class SoilModel(RhizoInputsSoilModel):
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
 
     # W Initialization parameters
-    water_moisture_patch: float = declare(default=2.2, unit="mol.m-3", unit_comment="of equivalent mineral nitrogen", description="Mineral nitrogen concentration in a located patch in soil", 
+    water_moisture_patch: float = declare(default=0.2, unit="mol.m-3", unit_comment="of equivalent mineral nitrogen", description="Mineral nitrogen concentration in a located patch in soil", 
                                         value_comment="", references="Drew et al. 1975", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
-    patch_depth_water_moisture: float = declare(default=10e-2, unit="m", unit_comment="", description="Depth of a nitrate patch in soil", 
+    patch_depth_water_moisture: float = declare(default=0., unit="m", unit_comment="", description="Depth of a nitrate patch in soil", 
                                         value_comment="", references="Drew et al. 1975", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
-    patch_uniform_width_water_moisture: float = declare(default=4e-2, unit="m", unit_comment="", description="Width of the zone of the patch with uniform concentration of nitrate", 
+    patch_uniform_width_water_moisture: float = declare(default=2*0.1, unit="m", unit_comment="", description="Width of the zone of the patch with uniform concentration of nitrate", 
                                         value_comment="", references="Drew et al. 1975", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
     patch_transition_water_moisture: float = declare(default=1e-3, unit="m", unit_comment="", description="Variance of the normal law smooting the boundary transition of a nitrate patch with the background concentration", 
@@ -117,7 +117,7 @@ class SoilModel(RhizoInputsSoilModel):
 
     # N Initialization parameters
     
-    content_mineralN_patch: float = declare(default=2.2, unit="mol.g-1", unit_comment="of equivalent mineral nitrogen", description="Mineral nitrogen concentration in a located patch in soil", 
+    content_mineralN_patch: float = declare(default=20e-6 / 14, unit="mol.g-1", unit_comment="of equivalent mineral nitrogen", description="Mineral nitrogen concentration in a located patch in soil", 
                                         value_comment="", references="Drew et al. 1975", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
     patch_depth_mineralN: float = declare(default=10e-2, unit="m", unit_comment="", description="Depth of a nitrate patch in soil", 
@@ -161,12 +161,13 @@ class SoilModel(RhizoInputsSoilModel):
         self.voxels["dry_soil_mass"] = 1e6 * self.voxels["volume"] * self.voxels["bulk_density"]
         self.voxels["water_volume"] = self.voxels["volume"] * self.voxels["soil_moisture"]
         self.voxels["C_mineralN_soil"] = self.voxels["content_mineralN_soil"] * self.voxels["dry_soil_mass"] / self.voxels["water_volume"]
-
+        self.voxels["C_amino_acids_soil"] = self.voxels["content_amino_acids_soil"] * self.voxels["dry_soil_mass"] / self.voxels["water_volume"]
+    
     def add_patch_repartition_to_soil(self, property_name: str, patch_value: float, x_loc=None, y_loc=None, z_loc=None, 
                                                                         x_width=0, y_width=0, z_width=0, 
-                                                                        x_dev=1e-3, y_dev=1e-3, z_dev=1e-3):
-
-        spherical_normal_patch = False
+                                                                        x_dev=1e-3, y_dev=1e-3, z_dev=1e-3,
+                                                                        spherical_normal_patch = False):
+        
         if spherical_normal_patch:
             y_dev = x_dev
             z_dev = x_dev
