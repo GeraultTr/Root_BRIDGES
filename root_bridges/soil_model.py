@@ -158,8 +158,8 @@ class SoilModel(RhizoInputsSoilModel):
                                            z_dev=self.patch_transition_water_moisture)
         
         # Initialize volumic concentrations
-        self.voxels["dry_soil_mass"] = 1e6 * self.voxels["volume"] * self.voxels["bulk_density"]
-        self.voxels["water_volume"] = self.voxels["volume"] * self.voxels["soil_moisture"]
+        self.voxels["dry_soil_mass"] = 1e6 * self.voxels["voxel_volume"] * self.voxels["bulk_density"]
+        self.voxels["water_volume"] = self.voxels["voxel_volume"] * self.voxels["soil_moisture"]
         self.voxels["C_mineralN_soil"] = self.voxels["content_mineralN_soil"] * self.voxels["dry_soil_mass"] / self.voxels["water_volume"]
         self.voxels["C_amino_acids_soil"] = self.voxels["content_amino_acids_soil"] * self.voxels["dry_soil_mass"] / self.voxels["water_volume"]
     
@@ -204,7 +204,7 @@ class SoilModel(RhizoInputsSoilModel):
             self.voxels[property_name][y_mean > y_loc + y_width/2] = self.voxels[property_name] + (patch_value - self.voxels[property_name]) / (y_dev * np.sqrt(2 * np.pi)) * np.exp(-((y_mean - (y_loc + y_width/2)) ** 2) / (2 * y_dev ** 2))
             self.voxels[property_name][y_mean < y_loc - y_width/2] = self.voxels[property_name] + (patch_value - self.voxels[property_name]) / (y_dev * np.sqrt(2 * np.pi)) * np.exp(-((y_mean - (y_loc - y_width/2)) ** 2) / (2 * y_dev ** 2))
 
-    # ACTUAL MODEL
+    # MODEL EAQUATIONS
 
     #TP@state
     def _C_mineralN_soil(self, C_mineralN_soil, soil_moisture, voxel_volume, mineralN_diffusion_from_roots, mineralN_diffusion_from_xylem, mineralN_uptake):
