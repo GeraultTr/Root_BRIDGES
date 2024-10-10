@@ -166,7 +166,7 @@ class SoilModel(RhizoInputsSoilModel):
     def add_patch_repartition_to_soil(self, property_name: str, patch_value: float, x_loc=None, y_loc=None, z_loc=None, 
                                                                         x_width=0, y_width=0, z_width=0, 
                                                                         x_dev=1e-3, y_dev=1e-3, z_dev=1e-3,
-                                                                        spherical_normal_patch = False):
+                                                                        spherical_normal_patch = False, normal_boundaries = False):
         
         if spherical_normal_patch:
             y_dev = x_dev
@@ -182,12 +182,13 @@ class SoilModel(RhizoInputsSoilModel):
 
             test = np.logical_and(z_loc - z_width/2 < z_mean, z_mean < z_loc + z_width/2)
             self.voxels[property_name][test] = patch_value
-            test = z_mean > z_loc + z_width/2
-            new_values = self.voxels[property_name] + (patch_value - self.voxels[property_name]) / (z_dev * np.sqrt(2 * np.pi)) * np.exp(-((z_mean - (z_loc + z_width/2)) ** 2) / (2 * z_dev ** 2))
-            self.voxels[property_name][test] = new_values[test]
-            test = z_mean < z_loc - z_width/2
-            new_values = self.voxels[property_name] + (patch_value - self.voxels[property_name]) / (z_dev * np.sqrt(2 * np.pi)) * np.exp(-((z_mean - (z_loc - z_width/2)) ** 2) / (2 * z_dev ** 2))
-            self.voxels[property_name][test] = new_values[test]
+            if normal_boundaries:
+                test = z_mean > z_loc + z_width/2
+                new_values = self.voxels[property_name] + (patch_value - self.voxels[property_name]) / (z_dev * np.sqrt(2 * np.pi)) * np.exp(-((z_mean - (z_loc + z_width/2)) ** 2) / (2 * z_dev ** 2))
+                self.voxels[property_name][test] = new_values[test]
+                test = z_mean < z_loc - z_width/2
+                new_values = self.voxels[property_name] + (patch_value - self.voxels[property_name]) / (z_dev * np.sqrt(2 * np.pi)) * np.exp(-((z_mean - (z_loc - z_width/2)) ** 2) / (2 * z_dev ** 2))
+                self.voxels[property_name][test] = new_values[test]
 
         # Then x and y
         if x_loc is not None:
@@ -239,8 +240,8 @@ class SoilModel(RhizoInputsSoilModel):
         """
         Water retention curve from van Genuchten 1980
         """
-        m = self.water_n
-        return (1 / self.water_alpha) * (
+        m = 1 - (1/self.water_n)
+        return - (1 / self.water_alpha) * (
                                             ((self.theta_S - self.theta_R) / ((water_volume / voxel_volume) - self.theta_R)) ** (1 / m) - 1 
                                         )** (1 / self.water_n)
     
