@@ -99,6 +99,8 @@ class RootGrowthModelCoupled(RootGrowthModel):
             n.actual_elongation = 0.
             n.actual_elongation_rate = 0.
 
+            n.hexose_consumption_rate_by_fungus = 0.
+
             # We make sure that the initial values of length, radius and struct_mass are correctly initialized:
             n.initial_length = n.length
             n.initial_radius = n.radius
@@ -122,13 +124,13 @@ class RootGrowthModelCoupled(RootGrowthModel):
         """
 
         # If we keep the classical ArchiSimple rule:
-        if self.ArchiSimple:
+        if self.simple_growth_duration:
             # Then the elongation is calculated following the rules of Pages et al. (2014):
             elongation = self.EL * 2. * radius * elongation_time_in_seconds
         else:
             # Otherwise, we additionally consider a limitation of the elongation according to the local concentration of hexose,
             # based on a Michaelis-Menten formalism:
-            if C_hexose_root > 0. and element.AA > 0:
+            if C_hexose_root > self.C_hexose_min_for_elongation and element.AA > 0:
                 # michaelis_menten_limitation = ((1 + self.Km_elongation) / C_hexose_root) * ((1 + self.Km_elongation_amino_acids) / element.AA)
                 michaelis_menten_limitation = ((C_hexose_root / (C_hexose_root + self.Km_elongation)) + (element.AA / (element.AA + self.Km_elongation_amino_acids))) / 2
                 #print("MM", michaelis_menten_limitation)
@@ -473,8 +475,8 @@ class RootGrowthModelCoupled(RootGrowthModel):
         # CHECKING WHETHER THE APEX OF THE ROOT AXIS HAS STOPPED GROWING:
         # ---------------------------------------------------------------
 
-        # We look at the apex of the axis to which the segment belongs (i.e. we get the last element of all the Descendants):
-        index_apex = self.g.Descendants(segment.index())[-1]
+        # We look at the apex of the axis to which the segment belongs (i.e. we get the last element of the axis):
+        index_apex = self.g.Axis(segment.index())[-1]
         apex = self.g.node(index_apex)
         # print("For segment", segment.index(), "the terminal index is", index_apex, "and has the type", apex.label)
         # Depending on the type of the apex, we adjust the type of the segment on the same axis:
@@ -529,7 +531,7 @@ class RootGrowthModelCoupled(RootGrowthModel):
         # REGULATION OF RADIAL GROWTH BY AVAILABLE CARBON:
         # ------------------------------------------------
         # If the radial growth is possible:
-        if self.radial_growth == "Possible":
+        if self.radial_growth:
             # The radius of the root segment is defined according to the pipe model.
             # In ArchiSimp9, the radius is increased by considering the sum of the sections of all the children,
             # by adding a fraction (SGC) of this sum of sections to the current section of the parent segment,
@@ -540,11 +542,11 @@ class RootGrowthModelCoupled(RootGrowthModel):
                 # Then the potential radius is set to the initial radius:
                 segment.theoretical_radius = segment.initial_radius
             # If we consider simple ArchiSimple rules:
-            if self.ArchiSimple:
+            if self.simple_growth_duration:
                 # Then the potential radius to form is equal to the theoretical one determined by geometry:
                 segment.potential_radius = segment.theoretical_radius
             # Otherwise, if we don't strictly follow simple ArchiSimple rules and if there can be an increase in radius:
-            elif segment.length > 0. and segment.theoretical_radius > segment.radius:
+            elif segment.length > 0. and segment.theoretical_radius > segment.radius and segment.C_hexose_root > self.C_hexose_min_for_thickening:
                 # We calculate the maximal increase in radius that can be achieved over this time step,
                 # based on a Michaelis-Menten formalism that regulates the maximal rate of increase
                 # according to the amount of hexose available:
@@ -707,14 +709,21 @@ class RootGrowthModelCoupled(RootGrowthModel):
             # ---------------------------------------------------------
 
             # We initialize each amount of hexose available for growth:
-            hexose_possibly_required_for_elongation = 0.
+            hexose_available_for_elongation = 0.
             hexose_available_for_thickening = 0.
             amino_acids_possibly_required_for_elongation = 0.
             amino_acids_available_for_thickening = 0.
 
             # If elongation is possible:
             if n.potential_length > n.length:
-                hexose_possibly_required_for_elongation = n.hexose_possibly_required_for_elongation
+                # TODO: Check how useful it is to limit the growth so that the concentration does not go below a treshold.
+                # NEW - We calculate the actual amount of hexose that can be used for growth according to the treshold
+                # concentration below which no growth process is authorized:
+                hexose_available_for_elongation \
+                    = n.hexose_possibly_required_for_elongation \
+                    - n.struct_mass_contributing_to_elongation * self.C_hexose_min_for_elongation
+                if hexose_available_for_elongation < 0.:
+                    hexose_available_for_elongation = 0.
                 amino_acids_possibly_required_for_elongation = n.amino_acids_possibly_required_for_elongation
                 list_of_elongation_supporting_elements = n.list_of_elongation_supporting_elements
                 list_of_elongation_supporting_elements_hexose = n.list_of_elongation_supporting_elements_hexose
@@ -724,17 +733,25 @@ class RootGrowthModelCoupled(RootGrowthModel):
             # If radial growth is possible:
             if n.potential_radius > n.radius:
                 # We only consider the amount of hexose immediately available in the element that can increase in radius:
-                hexose_available_for_thickening = n.hexose_available_for_thickening
+                # We only consider the amount of hexose immediately available in the element that can increase in radius.
+                # TODO: Check how useful it is to limit the growth so that the concentration does not go below a treshold.
+                # NEW - We calculate the actual amount of hexose that can be used for thickening according to the treshold
+                # concentration below which no thickening is authorized:
+                hexose_available_for_thickening = n.hexose_available_for_thickening \
+                                                - n.struct_mass * self.C_hexose_min_for_thickening
+                if hexose_available_for_thickening <0.:
+                    hexose_available_for_thickening = 0.
+
                 amino_acids_available_for_thickening = n.amino_acids_available_for_thickening
 
             # In case no hexose is available at all:
-            if (hexose_possibly_required_for_elongation + hexose_available_for_thickening) <= 0. or (
+            if (hexose_available_for_elongation  + hexose_available_for_thickening) <= 0. or (
                 amino_acids_possibly_required_for_elongation + amino_acids_available_for_thickening) <= 0. :
                 # Then we move to the next element in the main loop:
                 continue
 
             # We initialize the temporary variable "remaining_hexose" that computes the amount of hexose left for growth:
-            remaining_hexose_for_elongation = hexose_possibly_required_for_elongation
+            remaining_hexose_for_elongation = hexose_available_for_elongation 
             remaining_hexose_for_thickening = hexose_available_for_thickening
             remaining_amino_acids_for_elongation = amino_acids_possibly_required_for_elongation
             remaining_amino_acids_for_thickening = amino_acids_available_for_thickening
@@ -743,7 +760,7 @@ class RootGrowthModelCoupled(RootGrowthModel):
             # ---------------------------------------
 
             # We calculate the maximal possible length of the root element according to all the hexose available for elongation:
-            prossible_volume_increase_C_hexose = hexose_possibly_required_for_elongation * 6. \
+            prossible_volume_increase_C_hexose = hexose_available_for_elongation * 6. \
                          / (n.root_tissue_density * self.struct_mass_C_content) * self.yield_growth
             prossible_volume_increase_C_AA = amino_acids_possibly_required_for_elongation * self.r_C_AA \
                          / (n.root_tissue_density * self.struct_mass_C_content) * self.yield_growth
@@ -784,10 +801,10 @@ class RootGrowthModelCoupled(RootGrowthModel):
                         index = list_of_elongation_supporting_elements[i]
                         supplying_element = self.g.node(index)
                         # We define the actual contribution of the current element based on total hexose consumption by growth
-                        # of element n and the relative contribution of the current element to the pool of the available hexose:
+                        # of element n and the relative contribution of the current element to the pool of the potentially available hexose:
                         hexose_actual_contribution_to_elongation = hexose_consumption_by_elongation \
                                                                    * list_of_elongation_supporting_elements_hexose[
-                                                                       i] / hexose_possibly_required_for_elongation
+                                                                       i] / n.hexose_possibly_required_for_elongation
                         amino_acids_actual_contribution_to_elongation = amino_acids_consumption_by_elongation \
                                                                    * list_of_elongation_supporting_elements_amino_acids[
                                                                        i] / amino_acids_possibly_required_for_elongation
