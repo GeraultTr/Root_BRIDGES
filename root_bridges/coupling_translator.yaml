@@ -122,27 +122,27 @@ SoilModel:
     cells_release:
       cells_release: 1.0
     hexose_exudation:
-      hexose_exudation: 1.0
+      hexose_exudation: 12 * 6 # C molar mass * number of atoms 
     hexose_uptake_from_soil:
-      hexose_uptake_from_soil: 1.0
+      hexose_uptake_from_soil: 12 * 6 # C molar mass * number of atoms 
     mucilage_secretion:
       mucilage_secretion: 1.0
     phloem_hexose_exudation:
-      phloem_hexose_exudation: 1.0
+      phloem_hexose_exudation: 12 * 6 # C molar mass * number of atoms 
     phloem_hexose_uptake_from_soil:
-      phloem_hexose_uptake_from_soil: 1.0
+      phloem_hexose_uptake_from_soil: 12 * 6 # C molar mass * number of atoms 
     mineralN_uptake:
-      import_Nm: 1.0
+      import_Nm: 14 # N molar mass
     amino_acids_uptake:
-      import_AA: 1.0
+      import_AA: 12 * 6 # C molar mass * number of atoms 
     mineralN_diffusion_from_roots:
-      diffusion_Nm_soil: 1.0
+      diffusion_Nm_soil: 14 # N molar mass
     amino_acids_diffusion_from_roots:
-      diffusion_AA_soil: 1.0
+      diffusion_AA_soil: 12 * 6 # C molar mass * number of atoms 
     mineralN_diffusion_from_xylem:
-      diffusion_Nm_soil_xylem: 1.0
+      diffusion_Nm_soil_xylem: 14 # N molar mass
     amino_acids_diffusion_from_xylem:
-      diffusion_AA_soil_xylem: 1.0
+      diffusion_AA_soil_xylem: 12 * 6 # C molar mass * number of atoms 
   RootGrowthModelCoupled:
     struct_mass:
       struct_mass: 1.0
