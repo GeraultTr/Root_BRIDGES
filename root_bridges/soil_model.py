@@ -331,8 +331,7 @@ class SoilModel(RhizoInputsSoilModel):
 
     # RATES
 
-    @potential
-    @rate
+    @stepinit
     def _microbial_activity(self, microbial_C, soil_temperature):
         if microbial_C > self.microbial_C_min and microbial_C < self.microbial_C_max:
             temperature_regulation = self.temperature_modification(soil_temperature=soil_temperature,
@@ -344,31 +343,132 @@ class SoilModel(RhizoInputsSoilModel):
         else:
             return 1. * temperature_regulation
 
-    @actual
     @rate
     def _degradation_POC(self, microbial_activity, POC):
         return self.k_POC * microbial_activity * POC
 
-    @actual
     @rate
     def _degradation_MAOC(self, microbial_activity, MAOC):
         return self.k_MAOC * microbial_activity * MAOC
 
-    @actual
     @rate
     def _degradation_DOC(self, microbial_activity, DOC):
         return self.k_DOC * microbial_activity * DOC
     
-    @actual
     @rate
     def _degradation_microbial_OC(self, microbial_activity, microbial_C):
         return self.k_MbOC * microbial_activity * microbial_C
 
-    @actual
     @rate
     def _mineral_N_microbial_uptake(self, microbial_C, dissolved_mineral_N):
         return self.max_N_uptake_per_microbial_C * microbial_C * dissolved_mineral_N / (self.Km_microbial_N_uptake + dissolved_mineral_N)
     
+
+    def soil_moisture_capacity(self, psi):
+        """
+        Specific moisture capacity function, C(psi)
+        Derivarion of the soil_moisture function
+        """
+        m = 1 - 1/self.water_n
+        return (self.theta_S - self.theta_R) * self.water_alpha * self.water_n * m * (((self.water_alpha * np.abs(psi))**(self.water_n - 1)) /
+                                                                                     ((1 + (self.water_alpha * np.abs(psi))**self.water_n)**(m + 1)))
+
+    def soil_water_conductivity(self, theta):
+        """
+        Compute water conductivity at each point as function of soil moisture according to the van Genuchten-Mualem Model
+        """
+        m = 1-1/self.water_n
+        Se = (theta - self.theta_R) / (self.theta_S - self.theta_R)
+        return self.Ks * Se**0.5 * (1 - (1 - Se**(1/m))**m)**2
+    
+    def soil_moisture(self, water_potential_soil):
+        m = 1 - (1/self.water_n)
+        return self.theta_R + (self.theta_S - self.theta_R) / (1 + np.abs(self.water_alpha * water_potential_soil)**self.water_n) ** m
+
+    @stepinit
+    def _Richards_1D_water_flux(self):
+        """
+        Richards_1D_water_flux
+        """
+        water_potential_soil = self.voxels["water_potential_soil"]
+        theta = self.voxels["soil_moisture"]
+
+        volumetric_source_water_flow = self.voxels["water_uptake"] / self.voxels["soil_dry_mass"] # g of W per g of soil per s-1
+        volumetric_source_water_flow[:, :, 1] += self.water_irrigation - self.water_evaporation
+        volumetric_source_water_flow[:, :, -1] -= self.water_logging
+
+        delta_z = np.abs(self.voxels["z2"][0, 0, 0] - self.voxels["z2"][0, 0, 1])
+        self.water_dt = 3600
+
+        converged = False
+        iteration = 0
+
+        while not converged and iteration < self.max_iterations:
+            water_potential_soil_prev = water_potential_soil.copy()
+
+            # Update Richards equation and water flux
+
+            # Compute water conductivity at each point as function of soil moisture according to the van Genuchten-Mualem Model
+            K = self.soil_water_conductivity(theta)
+
+             # Calculate fluxes between points, including gravitational term
+            flux_forward = K[:, :, 1:] * ((water_potential_soil[:, :, 1:] - water_potential_soil[:, :, :-1]) / delta_z + self.water_volumic_mass * self.g_acceleration)
+            flux_backward = K[:, :, :-1] * ((water_potential_soil[:, :, :-1] - water_potential_soil[:, :, :-2]) / delta_z + self.water_volumic_mass * self.g_acceleration)
+
+            water_potential_soil[:, :, 1:-1] += self.water_dt * (1 / self.soil_moisture_capacity(water_potential_soil[:, :, 1:-1])) * ((flux_forward - flux_backward) / delta_z + volumetric_source_water_flow[:, :, 1:-1])
+
+            # Convergence check
+            error = np.max(np.abs(water_potential_soil - water_potential_soil_prev))
+            if error < self.tolerance:
+                converged = True
+                
+                self.voxels["water_potential_soil"] = water_potential_soil
+
+                # Calculate Darcy flux for use in other equations
+                self.voxels["soil_water_flux"] = -K * (np.gradient(water_potential_soil, delta_z, axis=2) + self.water_volumic_mass * self.g_acceleration)
+
+                # Update water content
+                self.voxels["soil_moisture"] = self.soil_moisture(water_potential_soil)
+
+            else:
+                iteration += 1
+        
+        if iteration < 3:
+            self.water_dt = min(self.water_dt * 1.2, self.max_water_dt)  # Increase dt if convergence was fast
+        elif iteration == self.max_iterations:
+            self.water_dt = max(self.water_dt * 0.5, self.min_water_dt) # Lower it if convergence took too much time, we lack precision there
+
+
+    def solute_water_advection(self, soil_water_flux, solute_concentration):
+        # Advection term: calculate forward and backward flux components
+        advection_forward = soil_water_flux[:, :, 1:] * (solute_concentration[:, :, 1:] + solute_concentration[:, :, :-1]) / 2
+        advection_backward = soil_water_flux[:, :, :-1] * (solute_concentration[:, :, :-1] + solute_concentration[:, :, :-2]) / 2
+
+        # Combine forward and backward components and multiply by voxel cross sectionnal area to get the molar flux
+        return (advection_forward - advection_backward) * self.voxels_Z_section_area
+    
+    def solute_diffusion(self, soil_water_flux, soil_moisture, solute_concentration):
+        D_m = 1e-9  # Molecular diffusion coefficient (m^2/s) should differ for each solute
+        alpha_L = 0.1  # Longitudinal dispersivity (m)
+        dispersion_coefficient = D_m + alpha_L * np.abs(soil_water_flux) / soil_moisture # m^2/s
+
+        # Dispersion term: calculate forward and backward components
+        dispersion_forward = dispersion_coefficient[:, :, 1:] * (solute_concentration[:, :, 1:] - solute_concentration[:, :, :-1]) / self.delta_z
+        dispersion_backward = dispersion_coefficient[:, :, :-1] * (solute_concentration[:, :, :-1] - solute_concentration[:, :, :-2]) / self.delta_z
+
+        # Combine forward and backward components and multiply by voxel cross sectionnal area to get the molar flux
+        return (dispersion_forward - dispersion_backward) * self.voxels_Z_section_area
+
+    @rate
+    def _mineral_N_transport(self, mineral_N_transport, soil_water_flux, C_mineral_N_soil):
+        mineral_N_transport[:, :, 1:-1] = self.solute_diffusion(C_mineral_N_soil) - self.solute_water_advection(soil_water_flux, C_mineral_N_soil)
+        return mineral_N_transport
+    
+    @rate
+    def _amino_acid_transport(self, amino_acid_transport, soil_water_flux, soil_moisture, C_amino_acids_soil):
+        amino_acid_transport[:, :, 1:-1] = self.solute_diffusion(soil_water_flux, soil_moisture, C_amino_acids_soil) - self.solute_water_advection(soil_water_flux, C_amino_acids_soil)
+        return amino_acid_transport
+
     # STATES
 
     @state
@@ -410,11 +510,13 @@ class SoilModel(RhizoInputsSoilModel):
         )
     
     @state
-    def _DON(self, DON, DOC, dry_doil_mass, degradation_DOC, amino_acids_diffusion_from_roots,  amino_acids_diffusion_from_xylem, amino_acid_uptake):
+    def _DON(self, DON, DOC, dry_doil_mass, degradation_DOC, amino_acids_diffusion_from_roots,  amino_acids_diffusion_from_xylem, amino_acid_uptake, amino_acid_transport):
         return DON + (self.time_step_in_seconds / dry_doil_mass) * (
             - degradation_DOC * dry_doil_mass * DON / DOC
             + (amino_acids_diffusion_from_roots
-            + amino_acids_diffusion_from_xylem - amino_acid_uptake) / self.CN_ratio_amino_acids
+            + amino_acids_diffusion_from_xylem 
+            - amino_acid_uptake
+            + amino_acid_transport) / self.CN_ratio_amino_acids
         )
     
     @state
@@ -457,7 +559,7 @@ class SoilModel(RhizoInputsSoilModel):
     
     @state
     def _dissolved_mineral_N(self, dissolved_mineral_N, dry_doil_mass, degradation_microbial_OC, mineral_N_microbial_uptake, 
-                             mineralN_diffusion_from_roots, mineralN_diffusion_from_xylem, mineralN_uptake, fertization_inputs_to_dissolved_mineral_N):
+                             mineralN_diffusion_from_roots, mineralN_diffusion_from_xylem, mineralN_uptake, fertization_inputs_to_dissolved_mineral_N, mineral_N_transport):
         return dissolved_mineral_N + (self.time_step_in_seconds / dry_doil_mass) * (
             - degradation_microbial_OC / self.CN_ratio_microbial_biomass
             - mineral_N_microbial_uptake 
@@ -465,6 +567,7 @@ class SoilModel(RhizoInputsSoilModel):
             + mineralN_diffusion_from_xylem
             - mineralN_uptake
             + fertization_inputs_to_dissolved_mineral_N
+            + mineral_N_transport
         )
 
     @state
@@ -480,10 +583,6 @@ class SoilModel(RhizoInputsSoilModel):
         return soil_moisture * voxel_volume
     
     #TP@state
-    def _soil_moisture(self, soil_moisture):
-        return soil_moisture
-    
-    @state
     def _water_potential_soil(self, voxel_volume, water_volume):
         """
         Water retention curve from van Genuchten 1980
@@ -492,4 +591,3 @@ class SoilModel(RhizoInputsSoilModel):
         return - (1 / self.water_alpha) * (
                                             ((self.theta_S - self.theta_R) / ((water_volume / voxel_volume) - self.theta_R)) ** (1 / m) - 1 
                                         )** (1 / self.water_n)
-    
