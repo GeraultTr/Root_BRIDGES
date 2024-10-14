@@ -39,7 +39,22 @@ class SoilModel(RhizoInputsSoilModel):
     amino_acids_diffusion_from_xylem: float =  declare(default=0., unit="mol.s-1", unit_comment="of amino_acids", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
                                                     variable_type="input", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
-
+    
+    # FROM WATER MODEL
+    water_uptake: float =  declare(default=0., unit="mol.s-1", unit_comment="of water", 
+                                                    min_value="", max_value="", description="", value_comment="", references="", DOI="",
+                                                    variable_type="input", by="model_water", state_variable_type="extensive", edit_by="user")
+    
+    # FROM METEO
+    water_irrigation: float =  declare(default=10/(24*3600), unit="g.s-1", unit_comment="of water", 
+                                                    min_value="", max_value="", description="", value_comment="", references="", DOI="",
+                                                    variable_type="input", by="meteo", state_variable_type="extensive", edit_by="user")
+    water_evaporation: float =  declare(default=5/(24*3600), unit="g.s-1", unit_comment="of water", 
+                                                    min_value="", max_value="", description="", value_comment="", references="", DOI="",
+                                                    variable_type="input", by="meteo", state_variable_type="extensive", edit_by="user")
+    water_drainage: float =  declare(default=5/(24*3600), unit="g.s-1", unit_comment="of water", 
+                                                    min_value="", max_value="", description="", value_comment="", references="", DOI="",
+                                                    variable_type="input", by="meteo", state_variable_type="extensive", edit_by="user")
 
     # STATE VARIABLES
 
@@ -96,6 +111,7 @@ class SoilModel(RhizoInputsSoilModel):
                                         value_comment="", references="", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="extensive", edit_by="user")
     
+    
     # Structure related
     voxel_volume: float = declare(default=1e-6, unit="m3", unit_comment="", description="Volume of the soil element in contact with a the root segment",
                                         value_comment="", references="", DOI="",
@@ -151,6 +167,7 @@ class SoilModel(RhizoInputsSoilModel):
                                         value_comment="", references="", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
     
+    # N related
     CN_ratio_POM: float = declare(default=20, unit="adim", unit_comment="gC per gN", description="", 
                                         value_comment="", references="", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
@@ -203,6 +220,12 @@ class SoilModel(RhizoInputsSoilModel):
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
 
     # Water-related parameters
+    water_volumic_mass: float = declare(default=1e6, unit="g.m-3", unit_comment="", description="Constant water volumic mass", 
+                                        value_comment="", references="", DOI="",
+                                       min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="extensive", edit_by="user")
+    g_acceleration: float = declare(default=9.806, unit="m.s-2", unit_comment="", description="gravitationnal acceleration constant", 
+                                        value_comment="", references="", DOI="",
+                                       min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="extensive", edit_by="user")
     theta_R: float = declare(default=0.0835, unit="adim", unit_comment="m3.m-3", description="Soil retention moisture", 
                                         value_comment="", references="clay loam estimated with Hydrus, bulk density = 1.42", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
@@ -221,6 +244,20 @@ class SoilModel(RhizoInputsSoilModel):
     permanent_wilting_point: float = declare(default=0.065, unit="adim", unit_comment="", description="Soil moisture at which soil doesn't retain water anymore.", 
                                         value_comment="", references="Cornell university, case of sandy loam soil", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
+    water_dt: float = declare(default=3600, unit="s", unit_comment="", description="Initialized time_step to try converging the soil water potential profile", 
+                                        value_comment="", references="", DOI="",
+                                       min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
+    min_water_dt: float = declare(default=10, unit="s", unit_comment="", description="min value for adaptative time-step in the convergence cycle for water potential profile", 
+                                        value_comment="", references="", DOI="",
+                                       min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
+    max_water_dt: float = declare(default=3600, unit="s", unit_comment="", description="max value for adaptative time-step in the convergence cycle for water potential profile", 
+                                        value_comment="", references="", DOI="min value for adaptative time-step in the convergence cycle for water potential profile",
+                                       min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
+    max_iterations: int = declare(default=20, unit="adim", unit_comment="", description="Maximal convergence cycle for water potential profile", 
+                                        value_comment="", references="", DOI="",
+                                       min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
+    
+    
 
     # W Initialization parameters
     water_moisture_patch: float = declare(default=0.2, unit="mol.m-3", unit_comment="of equivalent mineral nitrogen", description="Mineral nitrogen concentration in a located patch in soil", 
@@ -386,19 +423,17 @@ class SoilModel(RhizoInputsSoilModel):
         return self.theta_R + (self.theta_S - self.theta_R) / (1 + np.abs(self.water_alpha * water_potential_soil)**self.water_n) ** m
 
     @stepinit
-    def _Richards_1D_water_flux(self):
+    def richards_1D_water_flux(self):
         """
         Richards_1D_water_flux
         """
         water_potential_soil = self.voxels["water_potential_soil"]
         theta = self.voxels["soil_moisture"]
 
-        volumetric_source_water_flow = self.voxels["water_uptake"] / self.voxels["soil_dry_mass"] # g of W per g of soil per s-1
+        volumetric_source_water_flow = - self.voxels["water_uptake"] * 18
         volumetric_source_water_flow[:, :, 1] += self.water_irrigation - self.water_evaporation
-        volumetric_source_water_flow[:, :, -1] -= self.water_logging
-
-        delta_z = np.abs(self.voxels["z2"][0, 0, 0] - self.voxels["z2"][0, 0, 1])
-        self.water_dt = 3600
+        volumetric_source_water_flow[:, :, -1] -= self.water_drainage
+        volumetric_source_water_flow /= self.voxels["soil_dry_mass"] # to convert g of W per g of soil per s-1
 
         converged = False
         iteration = 0
@@ -412,10 +447,10 @@ class SoilModel(RhizoInputsSoilModel):
             K = self.soil_water_conductivity(theta)
 
              # Calculate fluxes between points, including gravitational term
-            flux_forward = K[:, :, 1:] * ((water_potential_soil[:, :, 1:] - water_potential_soil[:, :, :-1]) / delta_z + self.water_volumic_mass * self.g_acceleration)
-            flux_backward = K[:, :, :-1] * ((water_potential_soil[:, :, :-1] - water_potential_soil[:, :, :-2]) / delta_z + self.water_volumic_mass * self.g_acceleration)
+            flux_forward = K[:, :, 1:] * ((water_potential_soil[:, :, 1:] - water_potential_soil[:, :, :-1]) / self.delta_z + self.water_volumic_mass * self.g_acceleration)
+            flux_backward = K[:, :, :-1] * ((water_potential_soil[:, :, :-1] - water_potential_soil[:, :, :-2]) / self.delta_z + self.water_volumic_mass * self.g_acceleration)
 
-            water_potential_soil[:, :, 1:-1] += self.water_dt * (1 / self.soil_moisture_capacity(water_potential_soil[:, :, 1:-1])) * ((flux_forward - flux_backward) / delta_z + volumetric_source_water_flow[:, :, 1:-1])
+            water_potential_soil[:, :, 1:-1] += self.water_dt * (1 / self.soil_moisture_capacity(water_potential_soil[:, :, 1:-1])) * ((flux_forward - flux_backward) / self.delta_z + volumetric_source_water_flow[:, :, 1:-1])
 
             # Convergence check
             error = np.max(np.abs(water_potential_soil - water_potential_soil_prev))
@@ -425,7 +460,7 @@ class SoilModel(RhizoInputsSoilModel):
                 self.voxels["water_potential_soil"] = water_potential_soil
 
                 # Calculate Darcy flux for use in other equations
-                self.voxels["soil_water_flux"] = -K * (np.gradient(water_potential_soil, delta_z, axis=2) + self.water_volumic_mass * self.g_acceleration)
+                self.voxels["soil_water_flux"] = -K * (np.gradient(water_potential_soil, self.delta_z, axis=2) + self.water_volumic_mass * self.g_acceleration)
 
                 # Update water content
                 self.voxels["soil_moisture"] = self.soil_moisture(water_potential_soil)
@@ -498,7 +533,7 @@ class SoilModel(RhizoInputsSoilModel):
         )
 
     @state
-    def _DOC(self, DOC, dry_doil_mass, degradation_DOC, hexose_exudation, phloem_hexose_exudation, mucilage_secretion, amino_acids_diffusion_from_roots,  amino_acids_diffusion_from_xylem, amino_acid_uptake):
+    def _DOC(self, DOC, dry_doil_mass, degradation_DOC, hexose_exudation, phloem_hexose_exudation, mucilage_secretion, amino_acids_diffusion_from_roots,  amino_acids_diffusion_from_xylem, amino_acid_uptake, amino_acid_transport):
         return DOC + (self.time_step_in_seconds / dry_doil_mass) * (
             - degradation_DOC * dry_doil_mass
             + hexose_exudation
@@ -507,6 +542,7 @@ class SoilModel(RhizoInputsSoilModel):
             + amino_acids_diffusion_from_roots
             + amino_acids_diffusion_from_xylem
             - amino_acid_uptake
+            + amino_acid_transport
         )
     
     @state
