@@ -48,13 +48,16 @@ class SoilModel(RhizoInputsSoilModel):
     # FROM METEO
     water_irrigation: float =  declare(default=10/(24*3600), unit="g.s-1", unit_comment="of water", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
-                                                    variable_type="input", by="meteo", state_variable_type="extensive", edit_by="user")
+                                                    variable_type="plant_scale_state", by="meteo", state_variable_type="extensive", edit_by="user")
     water_evaporation: float =  declare(default=5/(24*3600), unit="g.s-1", unit_comment="of water", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
-                                                    variable_type="input", by="meteo", state_variable_type="extensive", edit_by="user")
+                                                    variable_type="plant_scale_state", by="meteo", state_variable_type="extensive", edit_by="user")
     water_drainage: float =  declare(default=5/(24*3600), unit="g.s-1", unit_comment="of water", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
-                                                    variable_type="input", by="meteo", state_variable_type="extensive", edit_by="user")
+                                                    variable_type="plant_scale_state", by="meteo", state_variable_type="extensive", edit_by="user")
+    mineral_N_fertilization: float =  declare(default=0., unit="g.s-1", unit_comment="of water", 
+                                                    min_value="", max_value="", description="", value_comment="", references="", DOI="",
+                                                    variable_type="plant_scale_state", by="meteo", state_variable_type="extensive", edit_by="user")
 
     # STATE VARIABLES
 
@@ -189,6 +192,9 @@ class SoilModel(RhizoInputsSoilModel):
     CN_ratio_microbial_biomass: float = declare(default=8, unit="adim", unit_comment="gC per gN", description="", 
                                         value_comment="", references="", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
+    CN_ratio_root_cells: float = declare(default=8, unit="adim", unit_comment="gC per gN", description="", 
+                                        value_comment="", references="", DOI="",
+                                       min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
     
     CUE_POC: float = declare(default=0.2, unit="adim", unit_comment="gC per gC", description="Carbon Use efficiency of microorganism degradation for POC", 
                                         value_comment="", references="", DOI="",
@@ -238,6 +244,9 @@ class SoilModel(RhizoInputsSoilModel):
     g_acceleration: float = declare(default=9.806, unit="m.s-2", unit_comment="", description="gravitationnal acceleration constant", 
                                         value_comment="", references="", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="extensive", edit_by="user")
+    saturated_hydraulic_conductivity: float = declare(default=1e-4 / (24*3600), unit="adim", unit_comment="m.s-1", description="staturated hydraulic conductivity parameter", 
+                                        value_comment="", references="clay loam estimated with Hydrus, bulk density = 1.42", DOI="",
+                                       min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
     theta_R: float = declare(default=0.0835, unit="adim", unit_comment="m3.m-3", description="Soil retention moisture", 
                                         value_comment="", references="clay loam estimated with Hydrus, bulk density = 1.42", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
@@ -384,34 +393,39 @@ class SoilModel(RhizoInputsSoilModel):
     # RATES
 
     @potential
-    @state
+    @rate
     def _microbial_activity(self, microbial_C, soil_temperature):
-        if microbial_C > self.microbial_C_min and microbial_C < self.microbial_C_max:
-            temperature_regulation = self.temperature_modification(soil_temperature=soil_temperature,
+        temperature_regulation = self.temperature_modification(soil_temperature=soil_temperature,
                                                                    T_ref=self.microbial_degradation_rate_max_T_ref,
                                                                     A=self.microbial_degradation_rate_max_A,
                                                                     B=self.microbial_degradation_rate_max_B,
                                                                     C=self.microbial_degradation_rate_max_C)
-            return (1. + (microbial_C - self.microbial_C_min)  / (self.microbial_C_max - self.microbial_C_min)) * temperature_regulation
-        else:
-            return 1. * temperature_regulation
+        test = (microbial_C > self.microbial_C_min) & (microbial_C < self.microbial_C_max)
+        results = np.ones_like(microbial_C)
+        results[test] = (1. + (microbial_C[test] - self.microbial_C_min)  / (self.microbial_C_max - self.microbial_C_min))
+        return results * temperature_regulation
 
+    @actual
     @rate
     def _degradation_POC(self, microbial_activity, POC):
         return self.k_POC * microbial_activity * POC
-
+    
+    @actual
     @rate
     def _degradation_MAOC(self, microbial_activity, MAOC):
         return self.k_MAOC * microbial_activity * MAOC
-
+    
+    @actual
     @rate
     def _degradation_DOC(self, microbial_activity, DOC):
         return self.k_DOC * microbial_activity * DOC
     
+    @actual
     @rate
     def _degradation_microbial_OC(self, microbial_activity, microbial_C):
         return self.k_MbOC * microbial_activity * microbial_C
 
+    @actual
     @rate
     def _mineral_N_microbial_uptake(self, microbial_C, dissolved_mineral_N):
         return self.max_N_uptake_per_microbial_C * microbial_C * dissolved_mineral_N / (self.Km_microbial_N_uptake + dissolved_mineral_N)
@@ -432,14 +446,14 @@ class SoilModel(RhizoInputsSoilModel):
         """
         m = 1-1/self.water_n
         Se = (theta - self.theta_R) / (self.theta_S - self.theta_R)
-        return self.Ks * Se**0.5 * (1 - (1 - Se**(1/m))**m)**2
+        return self.saturated_hydraulic_conductivity * Se**0.5 * (1 - (1 - Se**(1/m))**m)**2
     
     def _soil_moisture(self, water_potential_soil):
         m = 1 - (1/self.water_n)
         return self.theta_R + (self.theta_S - self.theta_R) / (1 + np.abs(self.water_alpha * water_potential_soil)**self.water_n) ** m
 
     @potential
-    @state
+    @rate
     def richards_1D_water_flux(self):
         """
         Richards_1D_water_flux
@@ -448,9 +462,10 @@ class SoilModel(RhizoInputsSoilModel):
         theta = self.voxels["soil_moisture"]
 
         volumetric_source_water_flow = - self.voxels["water_uptake"] * 18
-        volumetric_source_water_flow[:, :, 1] += self.water_irrigation - self.water_evaporation
-        volumetric_source_water_flow[:, :, -1] -= self.water_drainage
-        volumetric_source_water_flow /= self.voxels["soil_dry_mass"] # to convert g of W per g of soil per s-1
+        print(self.water_evaporation)
+        volumetric_source_water_flow[:, :, 1] += self.water_irrigation[1] - self.water_evaporation[1]
+        volumetric_source_water_flow[:, :, -1] -= self.water_drainage[1]
+        volumetric_source_water_flow /= self.voxels["dry_soil_mass"] # to convert g of W per g of soil per s-1
 
         converged = False
         iteration = 0
@@ -464,8 +479,8 @@ class SoilModel(RhizoInputsSoilModel):
             K = self.soil_water_conductivity(theta)
 
              # Calculate fluxes between points, including gravitational term
-            flux_forward = K[:, :, 1:] * ((water_potential_soil[:, :, 1:] - water_potential_soil[:, :, :-1]) / self.delta_z + self.water_volumic_mass * self.g_acceleration)
-            flux_backward = K[:, :, :-1] * ((water_potential_soil[:, :, :-1] - water_potential_soil[:, :, :-2]) / self.delta_z + self.water_volumic_mass * self.g_acceleration)
+            flux_forward = K[:, :, 1:-1] * ((water_potential_soil[:, :, 2:] - water_potential_soil[:, :, 1:-1]) / self.delta_z + self.water_volumic_mass * self.g_acceleration)
+            flux_backward = K[:, :, 1:-1] * ((water_potential_soil[:, :, 1:-1] - water_potential_soil[:, :, :-2]) / self.delta_z + self.water_volumic_mass * self.g_acceleration)
 
             water_potential_soil[:, :, 1:-1] += self.water_dt * (1 / self.soil_moisture_capacity(water_potential_soil[:, :, 1:-1])) * ((flux_forward - flux_backward) / self.delta_z + volumetric_source_water_flow[:, :, 1:-1])
 
@@ -493,8 +508,8 @@ class SoilModel(RhizoInputsSoilModel):
 
     def solute_water_advection(self, soil_water_flux, solute_concentration):
         # Advection term: calculate forward and backward flux components
-        advection_forward = soil_water_flux[:, :, 1:] * (solute_concentration[:, :, 1:] + solute_concentration[:, :, :-1]) / 2
-        advection_backward = soil_water_flux[:, :, :-1] * (solute_concentration[:, :, :-1] + solute_concentration[:, :, :-2]) / 2
+        advection_forward = soil_water_flux[:, :, 1:-1] * (solute_concentration[:, :, 2:] + solute_concentration[:, :, 1:-1]) / 2
+        advection_backward = soil_water_flux[:, :, 1:-1] * (solute_concentration[:, :, 1:-1] + solute_concentration[:, :, :-2]) / 2
 
         # Combine forward and backward components and multiply by voxel cross sectionnal area to get the molar flux
         return (advection_forward - advection_backward) * self.voxels_Z_section_area
@@ -505,21 +520,30 @@ class SoilModel(RhizoInputsSoilModel):
         dispersion_coefficient = D_m + alpha_L * np.abs(soil_water_flux) / soil_moisture # m^2/s
 
         # Dispersion term: calculate forward and backward components
-        dispersion_forward = dispersion_coefficient[:, :, 1:] * (solute_concentration[:, :, 1:] - solute_concentration[:, :, :-1]) / self.delta_z
-        dispersion_backward = dispersion_coefficient[:, :, :-1] * (solute_concentration[:, :, :-1] - solute_concentration[:, :, :-2]) / self.delta_z
+        dispersion_forward = dispersion_coefficient[:, :, 1:-1] * (solute_concentration[:, :, 2:] - solute_concentration[:, :, 1:-1]) / self.delta_z
+        dispersion_backward = dispersion_coefficient[:, :, 1:-1] * (solute_concentration[:, :, 1:-1] - solute_concentration[:, :, :-2]) / self.delta_z
 
         # Combine forward and backward components and multiply by voxel cross sectionnal area to get the molar flux
         return (dispersion_forward - dispersion_backward) * self.voxels_Z_section_area
 
+    @actual
     @rate
     def _mineral_N_transport(self, mineral_N_transport, soil_water_flux, soil_moisture, C_mineralN_soil):
         mineral_N_transport[:, :, 1:-1] = self.solute_diffusion(soil_water_flux, soil_moisture, C_mineralN_soil) - self.solute_water_advection(soil_water_flux, C_mineralN_soil)
         return mineral_N_transport
     
+    @actual
     @rate
     def _amino_acid_transport(self, amino_acid_transport, soil_water_flux, soil_moisture, C_amino_acids_soil):
         amino_acid_transport[:, :, 1:-1] = self.solute_diffusion(soil_water_flux, soil_moisture, C_amino_acids_soil) - self.solute_water_advection(soil_water_flux, C_amino_acids_soil)
         return amino_acid_transport
+    
+    @actual
+    @rate
+    def _fertization_inputs_to_dissolved_mineral_N(self, dry_soil_mass):
+        result = np.zeros_like(dry_soil_mass)
+        result[:, :, 1] = self.mineral_N_fertilization[1]
+        return result
 
     # STATES
 
@@ -550,7 +574,7 @@ class SoilModel(RhizoInputsSoilModel):
         )
 
     @state
-    def _DOC(self, DOC, dry_doil_mass, degradation_microbial_OC, degradation_DOC, hexose_exudation, phloem_hexose_exudation, mucilage_secretion, amino_acids_diffusion_from_roots,  amino_acids_diffusion_from_xylem, amino_acid_uptake, amino_acid_transport):
+    def _DOC(self, DOC, dry_doil_mass, degradation_microbial_OC, degradation_DOC, hexose_exudation, phloem_hexose_exudation, mucilage_secretion, amino_acids_diffusion_from_roots,  amino_acids_diffusion_from_xylem, amino_acids_uptake, amino_acid_transport):
         return DOC + (self.time_step_in_seconds / dry_doil_mass) * (
             degradation_microbial_OC * dry_doil_mass
             - degradation_DOC * dry_doil_mass
@@ -559,19 +583,19 @@ class SoilModel(RhizoInputsSoilModel):
             + mucilage_secretion
             + amino_acids_diffusion_from_roots
             + amino_acids_diffusion_from_xylem
-            - amino_acid_uptake
+            - amino_acids_uptake
             + amino_acid_transport
         )
     
     @postsegmentation
     @state
-    def _DON(self, DON, DOC, dry_doil_mass, degradation_microbial_OC, degradation_DOC, amino_acids_diffusion_from_roots,  amino_acids_diffusion_from_xylem, amino_acid_uptake, amino_acid_transport):
+    def _DON(self, DON, DOC, dry_doil_mass, degradation_microbial_OC, degradation_DOC, amino_acids_diffusion_from_roots,  amino_acids_diffusion_from_xylem, amino_acids_uptake, amino_acid_transport):
         return DON + (self.time_step_in_seconds / dry_doil_mass) * (
             degradation_microbial_OC * dry_doil_mass / self.CN_ratio_microbial_biomass
             - degradation_DOC * dry_doil_mass * DON / DOC
             + (amino_acids_diffusion_from_roots
             + amino_acids_diffusion_from_xylem 
-            - amino_acid_uptake
+            - amino_acids_uptake
             + amino_acid_transport) / self.CN_ratio_amino_acids
         )
     
