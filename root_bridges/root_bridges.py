@@ -43,7 +43,7 @@ class Model(CompositeModel):
         # DECLARE GLOBAL SIMULATION TIME STEP
         Choregrapher().add_simulation_time_step(time_step)
         self.time = 0
-        parameters = scenario["parameters"]["root_bridges"]
+        parameters = scenario["parameters"]["root_bridges"]["roots"]
         self.input_tables = scenario["input_tables"]
 
         # INIT INDIVIDUAL MODULES
@@ -58,18 +58,17 @@ class Model(CompositeModel):
         self.soil = SoilModel(self.g, time_step, **parameters)
         self.soil_voxels = self.soil.voxels
 
-        # EXPECTED !
-        self.models = (self.root_growth, self.root_anatomy, self.root_water, self.root_cn, self.soil)
-        self.data_structures = {"root": self.g, "soil": self.soil_voxels}
-
         # LINKING MODULES
-        self.link_around_mtg(translator_path=root_bridges.__path__[0])
+        self.declare_and_couple_components(self.root_growth, self.root_anatomy, self.root_water, self.root_cn, self.soil,
+                                           translator_path=root_bridges.__path__[0])
+        self.declare_data_structures(root=self.g, soil=self.soil_voxels)
 
+        # Some initialization must be performed after linking modules
         self.root_water.post_coupling_init()
 
 
     def run(self):
-        self.apply_input_tables(tables=self.input_tables, to=self.models, when=self.time)
+        self.apply_input_tables(tables=self.input_tables, to=self.components, when=self.time)
 
         # Update environment boundary conditions
         self.soil()

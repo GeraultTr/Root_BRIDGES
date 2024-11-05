@@ -88,7 +88,7 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
     @state
     def _C_hexose_root(self, C_hexose_root, struct_mass, living_root_hairs_struct_mass, hexose_exudation, hexose_uptake_from_soil,
                            mucilage_secretion, cells_release, maintenance_respiration,
-                           hexose_consumption_by_growth, hexose_consumption_by_fungus, hexose_diffusion_from_phloem,
+                           hexose_consumption_by_growth, hexose_diffusion_from_phloem,
                            hexose_active_production_from_phloem, sucrose_loading_in_phloem,
                            hexose_mobilization_from_reserve, hexose_immobilization_as_reserve, deficit_hexose_root, 
                            AA_synthesis, AA_catabolism, N_metabolic_respiration):
@@ -105,7 +105,6 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
                 - cells_release
                 - maintenance_respiration / 6.
                 - hexose_consumption_by_growth
-                - hexose_consumption_by_fungus
                 + hexose_diffusion_from_phloem
                 + hexose_active_production_from_phloem
                 - 2. * sucrose_loading_in_phloem
@@ -170,5 +169,6 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
                                                                 A=self.phloem_unloading_A,
                                                                 B=self.phloem_unloading_B,
                                                                 C=self.phloem_unloading_C)
+            
             return max(2. * max_unloading_rate * C_sucrose_root * phloem_exchange_surface / (
                     self.Km_unloading + C_sucrose_root), 0)

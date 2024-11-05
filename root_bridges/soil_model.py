@@ -392,8 +392,8 @@ class SoilModel(RhizoInputsSoilModel):
 
     # RATES
 
-    @potential
-    @rate
+    #@potential
+    #@rate
     def _microbial_activity(self, microbial_C, soil_temperature):
         temperature_regulation = self.temperature_modification(soil_temperature=soil_temperature,
                                                                    T_ref=self.microbial_degradation_rate_max_T_ref,
@@ -452,8 +452,8 @@ class SoilModel(RhizoInputsSoilModel):
         m = 1 - (1/self.water_n)
         return self.theta_R + (self.theta_S - self.theta_R) / (1 + np.abs(self.water_alpha * water_potential_soil)**self.water_n) ** m
 
-    @potential
-    @rate
+    #@potential
+    #@rate
     def richards_1D_water_flux(self):
         """
         Richards_1D_water_flux
