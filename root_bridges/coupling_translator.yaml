@@ -60,6 +60,8 @@ RootCNUnified:
       thermal_time_since_emergence: 1.0
     amino_acids_consumption_by_growth:
       amino_acids_consumption_by_growth: 1.0
+    vertex_index:
+      vertex_index: 1.0
   RootWaterModel:
     axial_export_water_up:
       axial_export_water_up: 1.0

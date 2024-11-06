@@ -32,6 +32,9 @@ class RootGrowthModelCoupled(RootGrowthModel):
     amino_acids_consumption_by_growth: float = declare(default=0., unit="mol.s-1", unit_comment="", description="amino_acids consumption rate by growth processes", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_growth", state_variable_type="extensive", edit_by="user")
+    vertex_index: int = declare(default=1, unit="mol.s-1", unit_comment="", description="Unique vertex identifier stored for ease of value access", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_growth", state_variable_type="extensive", edit_by="user")
     
     # PARAMETERS
     Km_elongation_amino_acids: float = declare(default=1250 * 1e-6 / 5, unit="mol.g-1", unit_comment="of amino_acids", description="Affinity constant for root elongation regarding amino_acids consumption",
@@ -57,18 +60,9 @@ class RootGrowthModelCoupled(RootGrowthModel):
     def __init__(self, g=None ,time_step=3600, **scenario):
         """Pass to inherited init, necessary with data classes"""
         super().__init__(g, time_step, **scenario)
+        self.vertex_index.update({vid: vid for vid in self.vertices})
 
-
-    def post_growth_updating(self):
-        self.vertices = self.g.vertices(scale=self.g.max_scale())
-        for vid in self.vertices:
-            if vid not in self.amino_acids_consumption_by_growth.keys():
-                parent = self.g.parent(vid)
-                # we partition the initial flow in the parent accounting for mass fraction
-                # We use struct_mass, the resulting structural mass after growth
-                mass_fraction = self.struct_mass[vid] / (self.struct_mass[vid] + self.struct_mass[parent])
-                self.amino_acids_consumption_by_growth.update({vid: self.amino_acids_consumption_by_growth[parent] * mass_fraction,
-                                            parent: self.amino_acids_consumption_by_growth[parent] * (1 - mass_fraction)})
+ 
 
     # SUBDIVISIONS OF THE SCHEDULING LOOP
     # -----------------------------------
@@ -980,6 +974,31 @@ class RootGrowthModelCoupled(RootGrowthModel):
 
                 # The distance to the last ramification is increased:
                 n.dist_to_ramif += n.actual_elongation
+
+
+    @segmentation
+    @state
+    def segmentation_and_primordia_formation(self):
+        """
+        This function considers segmentation and primordia formation across the whole root MTG.
+        :return:
+        """
+        super().segmentation_and_primordia_formation()
+        self.post_growth_updating()
+
+
+    def post_growth_updating(self):
+        for vid in self.vertices:
+            if vid not in self.amino_acids_consumption_by_growth:
+                parent = self.g.parent(vid)
+                # we partition the initial flow in the parent accounting for mass fraction
+                # We use struct_mass, the resulting structural mass after growth
+                mass_fraction = self.struct_mass[vid] / (self.struct_mass[vid] + self.struct_mass[parent])
+                self.amino_acids_consumption_by_growth.update({vid: self.amino_acids_consumption_by_growth[parent] * mass_fraction,
+                                            parent: self.amino_acids_consumption_by_growth[parent] * (1 - mass_fraction)})
+            if vid not in self.vertex_index:
+                # We also increment the vertex identifiers to be accesses in deficits
+                self.vertex_index[vid] = vid
 
 
     @postsegmentation
