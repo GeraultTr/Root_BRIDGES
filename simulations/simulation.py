@@ -17,20 +17,20 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
                     time_step_in_hours=1, logging_period_in_hours=24,
                     echo=echo, **log_settings)
     
-    # try:
-    for _ in range(simulation_length):
-        # Placed here also to capture mtg initialization
-        logger()
-        logger.run_and_monitor_model_step()
-        #root_bridges.run()
+    try:
+        for _ in range(simulation_length):
+            # Placed here also to capture mtg initialization
+            logger()
+            logger.run_and_monitor_model_step()
+            #root_bridges.run()
 
-    # except (ZeroDivisionError, KeyboardInterrupt):
-    #     logger.exceptions.append(sys.exc_info())
+    except (ZeroDivisionError, KeyboardInterrupt):
+        logger.exceptions.append(sys.exc_info())
 
-    # finally:
-    logger.stop()
-    if analyze:
-        analyze_data(scenarios=[os.path.basename(outputs_dirpath)], outputs_dirpath=outputs_dirpath, target_properties=None, **log_settings)
+    finally:
+        logger.stop()
+        if analyze:
+            analyze_data(scenarios=[os.path.basename(outputs_dirpath)], outputs_dirpath=outputs_dirpath, target_properties=None, **log_settings)
 
 
 def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_settings={}):

@@ -99,7 +99,7 @@ class RootGrowthModelCoupled(RootGrowthModel):
             n.actual_elongation = 0.
             n.actual_elongation_rate = 0.
 
-            n.hexose_consumption_rate_by_fungus = 0.
+            n.hexose_consumption_by_fungus = 0.
 
             # We make sure that the initial values of length, radius and struct_mass are correctly initialized:
             n.initial_length = n.length
@@ -1251,6 +1251,7 @@ class RootGrowthModelCoupled(RootGrowthModel):
                                                  hexose_growth_demand=0.,
                                                  hexose_consumption_by_growth_amount=0.,
                                                  hexose_consumption_by_growth=0.,
+                                                 hexose_consumption_by_fungus=0.,
                                                  hexose_possibly_required_for_elongation=0.,
                                                  # Time indications:
                                                  # ------------------
@@ -1341,6 +1342,7 @@ class RootGrowthModelCoupled(RootGrowthModel):
                                                  hexose_possibly_required_for_elongation=mother_element.hexose_possibly_required_for_elongation,
                                                  hexose_consumption_by_growth_amount=mother_element.hexose_consumption_by_growth_amount,
                                                  hexose_consumption_by_growth=mother_element.hexose_consumption_by_growth,
+                                                 hexose_consumption_by_fungus=mother_element.hexose_consumption_by_fungus,
                                                  # Time indications:
                                                  # ------------------
                                                  soil_temperature=mother_element.soil_temperature,
