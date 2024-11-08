@@ -177,3 +177,10 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
             
             return max(2. * max_unloading_rate * C_sucrose_root * phloem_exchange_surface / (
                     self.Km_unloading + C_sucrose_root), 0)
+        
+    #@totalrate
+    def _net_hexose_from_phloem(self, hexose_diffusion_from_phloem, hexose_active_production_from_phloem, sucrose_loading_in_phloem):
+        """
+        net flux from phloem to provide to shoot model
+        """
+        return sum(hexose_diffusion_from_phloem.values()) + sum(hexose_active_production_from_phloem.values()) - sum(sucrose_loading_in_phloem.values())

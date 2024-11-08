@@ -69,7 +69,7 @@ class SoilModel(RhizoInputsSoilModel):
     MAOC: float = declare(default=8.e-3, unit="adim", unit_comment="gC per g of dry soil", description="Mineral Associated Organic Carbon in soil", 
                                         value_comment="", references="Fischer et al. 1966", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
-    DOC: float = declare(default=0.5e-3, unit="adim", unit_comment="gC per g of dry soil", description="Dissolved Organic Carbon massic concentration in soil", 
+    DOC: float = declare(default=2e-7, unit="adim", unit_comment="gC per g of dry soil", description="Dissolved Organic Carbon massic concentration in soil", 
                                         value_comment="", references="Fischer et al. 1966", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
     microbial_C: float = declare(default=0.2e-3, unit="adim", unit_comment="gC per g of dry soil", description="microbial Carbon massic concentration in soil", 
@@ -86,7 +86,7 @@ class SoilModel(RhizoInputsSoilModel):
     MAON: float = declare(default=0.8e-3, unit="adim", unit_comment="gN per g of dry soil", description="Mineral-Associated Organic Nitrogen massic concentration in soil", 
                                         value_comment="", references="Fischer et al. 1966", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
-    DON: float = declare(default=0.05e-3, unit="adim", unit_comment="gN per g of dry soil", description="Dissolved Organic Nitrogen massic concentration in soil", 
+    DON: float = declare(default=2e-7, unit="adim", unit_comment="gN per g of dry soil", description="Dissolved Organic Nitrogen massic concentration in soil", 
                                         value_comment="", references="Fischer et al. 1966", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
     microbial_N: float = declare(default=0.03e-3, unit="adim", unit_comment="gN per g of dry soil", description="microbial N massic concentration in soil", 
@@ -107,7 +107,7 @@ class SoilModel(RhizoInputsSoilModel):
     water_potential_soil: float = declare(default=-0.1e6, unit="Pa", unit_comment="", description="Mean soil water potential", 
                                         value_comment="", references="", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
-    soil_moisture: float = declare(default=-0.1e6, unit="Pa", unit_comment="", description="Volumetric proportion of water per volume of soil", 
+    soil_moisture: float = declare(default=0.3, unit="adim", unit_comment="g.g-1", description="Volumetric proportion of water per volume of soil", 
                                         value_comment="", references="", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
     water_volume: float = declare(default=0.25e-6, unit="m3", unit_comment="", description="Volume of the water in the soil element in contact with a the root segment", 
@@ -345,6 +345,7 @@ class SoilModel(RhizoInputsSoilModel):
         self.voxels["water_volume"] = self.voxels["voxel_volume"] * self.voxels["soil_moisture"]
         self.voxels["C_mineralN_soil"] = self.voxels["dissolved_mineral_N"] * self.voxels["dry_soil_mass"] / self.voxels["water_volume"]
         self.voxels["C_amino_acids_soil"] = self.voxels["DON"] * self.voxels["dry_soil_mass"] / self.voxels["water_volume"]
+        self.voxels["C_hexose_soil"] = self.voxels["DOC"] * self.voxels["dry_soil_mass"] / self.voxels["water_volume"] / 6
     
     def add_patch_repartition_to_soil(self, property_name: str, patch_value: float, x_loc=None, y_loc=None, z_loc=None, 
                                                                         x_width=0, y_width=0, z_width=0, 
@@ -392,8 +393,8 @@ class SoilModel(RhizoInputsSoilModel):
 
     # RATES
 
-    #@potential
-    #@rate
+    @potential
+    @rate
     def _microbial_activity(self, microbial_C, soil_temperature):
         temperature_regulation = self.temperature_modification(soil_temperature=soil_temperature,
                                                                    T_ref=self.microbial_degradation_rate_max_T_ref,
@@ -452,8 +453,8 @@ class SoilModel(RhizoInputsSoilModel):
         m = 1 - (1/self.water_n)
         return self.theta_R + (self.theta_S - self.theta_R) / (1 + np.abs(self.water_alpha * water_potential_soil)**self.water_n) ** m
 
-    #@potential
-    #@rate
+    @potential
+    @rate
     def richards_1D_water_flux(self):
         """
         Richards_1D_water_flux
@@ -668,7 +669,7 @@ class SoilModel(RhizoInputsSoilModel):
     def _water_volume(self, soil_moisture, voxel_volume):
         return soil_moisture * voxel_volume
     
-    #TP@state
+    @state
     def _water_potential_soil(self, voxel_volume, water_volume):
         """
         Water retention curve from van Genuchten 1980
