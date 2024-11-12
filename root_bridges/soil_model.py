@@ -86,7 +86,7 @@ class SoilModel(RhizoInputsSoilModel):
     MAON: float = declare(default=0.8e-3, unit="adim", unit_comment="gN per g of dry soil", description="Mineral-Associated Organic Nitrogen massic concentration in soil", 
                                         value_comment="", references="Fischer et al. 1966", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
-    DON: float = declare(default=2e-7, unit="adim", unit_comment="gN per g of dry soil", description="Dissolved Organic Nitrogen massic concentration in soil", 
+    DON: float = declare(default=2e-8, unit="adim", unit_comment="gN per g of dry soil", description="Dissolved Organic Nitrogen massic concentration in soil", 
                                         value_comment="", references="Fischer et al. 1966", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
     microbial_N: float = declare(default=0.03e-3, unit="adim", unit_comment="gN per g of dry soil", description="microbial N massic concentration in soil", 
@@ -640,7 +640,7 @@ class SoilModel(RhizoInputsSoilModel):
                 + degradation_DOC * (1 - self.CUE_DOC)
             )
     
-    @state
+    #TP@state
     def _dissolved_mineral_N(self, dissolved_mineral_N, dry_soil_mass, mineral_N_net_mineralization, 
                              mineralN_diffusion_from_roots, mineralN_diffusion_from_xylem, mineralN_uptake, mineral_N_fertilization, mineral_N_transport):
         return dissolved_mineral_N + (self.time_step_in_seconds / dry_soil_mass) * (
@@ -652,8 +652,8 @@ class SoilModel(RhizoInputsSoilModel):
             + mineral_N_transport
         )
 
-    @segmentation
-    @state
+    #TP@segmentation
+    #TP@state
     def _C_mineralN_soil(self, dissolved_mineral_N, dry_soil_mass, soil_moisture, voxel_volume):
         return dissolved_mineral_N * (dry_soil_mass / (soil_moisture * voxel_volume)) / 14
 

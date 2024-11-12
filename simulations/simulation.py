@@ -9,12 +9,13 @@ from analyze.analyze import analyze_data
 from initialize.initialize import MakeScenarios as ms
 
 
-def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo=True, log_settings={}, analyze=True):
+def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo=True, log_settings={}, analyze=False):
     root_bridges = Model(time_step=3600, **scenario)
 
     logger = Logger(model_instance=root_bridges, components=root_bridges.components,
                     outputs_dirpath=outputs_dirpath, 
                     time_step_in_hours=1, logging_period_in_hours=24,
+                    recording_shoot=False,
                     echo=echo, **log_settings)
     
     try:
@@ -55,7 +56,7 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_setting
 
 
 if __name__ == '__main__':
-    scenarios = ms.from_table(file_path="inputs/Scenarios_24_05.xlsx", which=["Reference_Fischer"])
+    scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["Drew_low", "Drew_patch"])
     #scenarios = ms.from_table(file_path="inputs/Scenarios_24_05.xlsx", which=["Drew_1975_1", "Drew_1975_low", "Drew_1975_high"])
     #scenarios = ms.from_table(file_path="inputs/Scenarios_24_05.xlsx", which=["no_root_hairs_patch", "no_root_hairs"])
     #scenarios = ms.from_table(file_path="inputs/Scenarios_24_05.xlsx", which=["Drew_1975_high"])

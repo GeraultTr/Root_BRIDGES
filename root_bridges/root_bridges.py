@@ -50,7 +50,7 @@ class Model(CompositeModel):
         if len(scenario["input_mtg"]) > 0:
             self.root_growth = RootGrowthModelCoupled(scenario["input_mtg"]["root_mtg_file"], time_step, **parameters)
         else:
-            self.root_growth = RootGrowthModelCoupled(time_step, **parameters)
+            self.root_growth = RootGrowthModelCoupled(g=None, time_step=time_step, **parameters)
         self.g = self.root_growth.g
         self.root_anatomy = RootAnatomy(self.g, time_step, **parameters)
         self.root_water = RootWaterModel(self.g, time_step/10, **parameters)
