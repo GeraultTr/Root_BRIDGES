@@ -657,13 +657,13 @@ class SoilModel(RhizoInputsSoilModel):
     def _C_mineralN_soil(self, dissolved_mineral_N, dry_soil_mass, soil_moisture, voxel_volume):
         return dissolved_mineral_N * (dry_soil_mass / (soil_moisture * voxel_volume)) / 14
 
-    @segmentation
-    @state
+    #TP@segmentation
+    #TP@state
     def _C_amino_acids_soil(self, DOC, dry_soil_mass, soil_moisture, voxel_volume):
         return DOC * (dry_soil_mass * (soil_moisture / voxel_volume)) / 12 / self.ratio_C_per_amino_acid
     
-    @segmentation
-    @state
+    #TP@segmentation
+    #TP@state
     def _C_hexose_soil(self, DOC, dry_soil_mass, soil_moisture, voxel_volume):
         return DOC * (dry_soil_mass * (soil_moisture * voxel_volume)) / 14 / 6
     
