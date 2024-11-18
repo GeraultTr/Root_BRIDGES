@@ -101,22 +101,38 @@ def strategy_1():
     fake_complex_iterator()
 
 def strategy_2():
-    numpy_props = {name: np.array(list(props[name].values())) for name in props if isinstance(props[name], dict)}
+    numpy_props = {}
+    for name in props :
+        if isinstance(props[name], dict):
+            try:
+                numpy_props[name] = np.array(list(props[name].values()))
+            except:
+                print(f'{name} is not convertible to numpy')
+                continue
+
     for _ in range(n_processes):
         for func in parallel_functions:
-            props[func.__name__] = func(*(numpy_props[name] for name in input_names[func.__name__]))
+            props[func.__name__] = func(**{name:numpy_props[name] for name in input_names[func.__name__]})
     fake_complex_iterator()
     for name in numpy_props:
             props[name] = dict(zip(vertices, numpy_props[name]))
 
 def strategy_3():
-    numpy_props = {name: np.array(list(props[name].values())) for name in props if isinstance(props[name], dict)}
+    numpy_props = {}
+    for name in props :
+        if isinstance(props[name], dict):
+            try:
+                numpy_props[name] = np.array(list(props[name].values()))
+            except:
+                print(f'{name} is not convertible to numpy')
+                continue
+
     for _ in range(n_processes):
         props["phloem_exchange_surface"] = phloem_exchange_surface_numba(*(numpy_props[name] for name in input_names["phloem_exchange_surface"]))
         props["import_Nm"] = import_Nm_numba(*(numpy_props[name] for name in input_names["import_Nm"]))
     fake_complex_iterator()
     for name in numpy_props:
-            props[name] = dict(zip(vertices, numpy_props[name]))
+            props[name] = dict(zip(vertices, numpy_props[name].tolist()))
 
 def strategy_4():
     """
@@ -153,12 +169,12 @@ if __name__ == "__main__":
     input_names = {func.__name__: ins.getfullargspec(func)[0] for func in parallel_functions}
 
     execution_times = dict(
-        strat_0=timeit.timeit(strategy_0, number=10),
-        strat_1=timeit.timeit(strategy_1, number=10),
-        strat_2=timeit.timeit(strategy_2, number=10),
-        strat_3=timeit.timeit(strategy_3, number=10),
-        strat_4=timeit.timeit(strategy_4, number=10),
-        strat_5=timeit.timeit(strategy_5, number=10)
+        strat_0=timeit.timeit(strategy_0, number=10)/10.,
+        strat_1=timeit.timeit(strategy_1, number=10)/10.,
+        strat_2=timeit.timeit(strategy_2, number=10)/10.,
+        strat_3=timeit.timeit(strategy_3, number=10)/10,
+        strat_4=timeit.timeit(strategy_4, number=10)/10.,
+        strat_5=timeit.timeit(strategy_5, number=1)
     )
     
     print(execution_times)
