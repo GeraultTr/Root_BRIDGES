@@ -162,7 +162,7 @@ if __name__ == "__main__":
     props = g.properties()
     class_holding_properties = InputClass(g=g)
     receiver_instance = ReceiverClass(g=g, input_instance=class_holding_properties)
-    vertices = list(props["struct_mass"].keys())
+    vertices = set(props["struct_mass"].keys())
     
     n_processes = 50
     parallel_functions = [phloem_exchange_surface, import_Nm]
