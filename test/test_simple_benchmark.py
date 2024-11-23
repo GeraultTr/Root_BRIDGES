@@ -169,6 +169,7 @@ if __name__ == "__main__":
     input_names = {func.__name__: ins.getfullargspec(func)[0] for func in parallel_functions}
 
     execution_times = dict(
+
         strat_0=timeit.timeit(strategy_0, number=10)/10.,
         strat_1=timeit.timeit(strategy_1, number=10)/10.,
         strat_2=timeit.timeit(strategy_2, number=10)/10.,
