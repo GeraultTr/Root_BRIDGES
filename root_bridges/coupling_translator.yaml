@@ -16,6 +16,7 @@ RootAnatomy:
       total_root_hairs_number: 1.0
   RootWaterModel: {}
   SoilModel: {}
+
 RootCNUnified:
   RootAnatomy:
     apoplasmic_exchange_surface:
@@ -82,6 +83,11 @@ RootCNUnified:
       C_amino_acids_soil: 1.0
     soil_Nm:
       C_mineralN_soil: 1.0
+    struct_mass_fungus:
+      microbial_C: 1.0
+    Nm_fungus:
+      microbial_N: 1.0
+
 RootGrowthModelCoupled:
   RootAnatomy:
     root_tissue_density:
@@ -94,6 +100,7 @@ RootGrowthModelCoupled:
   SoilModel:
     soil_temperature:
       soil_temperature: 1.0
+
 RootWaterModel:
   RootAnatomy:
     apoplasmic_exchange_surface:
@@ -116,6 +123,7 @@ RootWaterModel:
       soil_temperature: 1.0
     soil_water_pressure:
       water_potential_soil: 1.0
+      
 SoilModel:
   RootAnatomy:
     root_exchange_surface:
