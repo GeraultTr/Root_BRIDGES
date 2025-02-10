@@ -102,6 +102,11 @@ class SoilModel(RhizoInputsSoilModel):
     C_amino_acids_soil: float = declare(default=8.2e-3, unit="mol.m-3", unit_comment="of equivalent mineral nitrogen", description="Mineral nitrogen concentration in soil", 
                                         value_comment="", references="Fischer et al 2007, water leaching estimation", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
+    
+    # All soluted
+    C_solutes_soil: float = declare(default=32.2, unit="mol.m-3", unit_comment="mol of  all dissolved mollecules in the soil solution", description="All dissolved mollecules concentration", 
+                                        value_comment="", references="", DOI="",
+                                       min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
 
     # Water related
     water_potential_soil: float = declare(default=-0.1e6, unit="Pa", unit_comment="", description="Mean soil water potential", 
@@ -282,6 +287,9 @@ class SoilModel(RhizoInputsSoilModel):
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
     max_iterations: int = declare(default=20, unit="adim", unit_comment="", description="Maximal convergence cycle for water potential profile", 
                                         value_comment="", references="", DOI="",
+                                       min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
+    C_solutes_background: float = declare(default=1e-3, unit="mol.m-3", unit_comment="", description="Background non C and non N solutes concentration in soil", 
+                                        value_comment="Raw estimation to align with inorganic N range for now", references="TODO", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
     
     
@@ -666,6 +674,11 @@ class SoilModel(RhizoInputsSoilModel):
     #TP@state
     def _C_hexose_soil(self, DOC, dry_soil_mass, soil_moisture, voxel_volume):
         return DOC * (dry_soil_mass * (soil_moisture * voxel_volume)) / 14 / 6
+    
+    #TP@postsegmentation
+    #TP@state
+    def _C_solutes_soil(self, C_hexose_soil, Cs_mucilage_soil, Cs_cells_soil, C_mineralN_soil, C_amino_acids_soil):
+        return C_hexose_soil + Cs_mucilage_soil + Cs_cells_soil + C_mineralN_soil + C_amino_acids_soil + self.C_solutes_background
     
     @state
     def _water_volume(self, soil_moisture, voxel_volume):
