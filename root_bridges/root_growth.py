@@ -32,10 +32,6 @@ class RootGrowthModelCoupled(RootGrowthModel):
     amino_acids_consumption_by_growth: float = declare(default=0., unit="mol.s-1", unit_comment="", description="amino_acids consumption rate by growth processes", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_growth", state_variable_type="extensive", edit_by="user")
-    vertex_index: int = declare(default=1, unit="mol.s-1", unit_comment="", description="Unique vertex identifier stored for ease of value access", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_growth", state_variable_type="extensive", edit_by="user")
-    
     # PARAMETERS
     Km_elongation_amino_acids: float = declare(default=1250 * 1e-6 / 5, unit="mol.g-1", unit_comment="of amino_acids", description="Affinity constant for root elongation regarding amino_acids consumption",
                                                     min_value="", max_value="", value_comment="TODO : actualize", references="According to Barillot et al. (2016b): Km for root growth is 1250 umol C g-1 for sucrose. According to Gauthier et al (2020): Km for regulation of the RER by sucrose concentration in hz = 100-150 umol C g-1", DOI="",
@@ -1387,3 +1383,7 @@ class RootGrowthModelCoupled(RootGrowthModel):
                                                  )
             
             return new_child
+
+    def __call__(self, *args, external_variables={}):
+        super().__call__(*args)
+        self.post_growth_updating()

@@ -12,6 +12,8 @@ family = "metabolic"
 @dataclass
 class RootCNUnified(RootCarbonModel, RootNitrogenModel):
 
+    family = family
+
     # INPUTS
     # FROM GROWTH MODEL
     amino_acids_consumption_by_growth: float = declare(default=0., unit="mol.s-1", unit_comment="", description="amino_acids consumption rate by growth processes", 
