@@ -106,6 +106,8 @@ RootNitrogenModel:
       symplasmic_volume: 1.0
     xylem_volume:
       xylem_volume: 1.0
+    xylem_struct_mass:
+      xylem_struct_mass: 1.0
   RootGrowthModel:
     initial_struct_mass:
       initial_struct_mass: 1.0
@@ -166,14 +168,14 @@ RootWaterModel:
       cortex_exchange_surface: 1.0
     xylem_volume:
       xylem_volume: 1.0
+    xylem_struct_mass:
+      xylem_struct_mass: 1.0
   RootCarbonModel: {}
   RootNitrogenModel:
     xylem_AA:
       xylem_AA: 1.0
     xylem_Nm:
       xylem_Nm: 1.0
-    xylem_struct_mass:
-      xylem_struct_mass: 1.0
   RootGrowthModel:
     length:
       length: 1.0
@@ -181,6 +183,8 @@ RootWaterModel:
       radius: 1.0
     struct_mass:
       struct_mass: 1.0
+    type:
+      type: 1.0
   RootWaterModel: {}
   SoilModel:
     soil_temperature:

@@ -104,7 +104,7 @@ class SoilModel(RhizoInputsSoilModel):
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
     
     # All soluted
-    C_solutes_soil: float = declare(default=32.2, unit="mol.m-3", unit_comment="mol of  all dissolved mollecules in the soil solution", description="All dissolved mollecules concentration", 
+    C_solutes_soil: float = declare(default=32.2 / 10, unit="mol.m-3", unit_comment="mol of  all dissolved mollecules in the soil solution", description="All dissolved mollecules concentration", 
                                         value_comment="", references="", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
 
@@ -288,7 +288,7 @@ class SoilModel(RhizoInputsSoilModel):
     max_iterations: int = declare(default=20, unit="adim", unit_comment="", description="Maximal convergence cycle for water potential profile", 
                                         value_comment="", references="", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
-    C_solutes_background: float = declare(default=1e-3, unit="mol.m-3", unit_comment="", description="Background non C and non N solutes concentration in soil", 
+    C_solutes_background: float = declare(default=0, unit="mol.m-3", unit_comment="", description="Background non C and non N solutes concentration in soil", 
                                         value_comment="Raw estimation to align with inorganic N range for now", references="TODO", DOI="",
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
     
