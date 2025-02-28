@@ -80,11 +80,12 @@ class Model(CompositeModel):
         self.root_growth()
 
         # Extend property dictionaries after growth
+        self.soil.post_growth_updating()
         self.root_anatomy.post_growth_updating()
         self.root_water.post_growth_updating()
         self.root_carbon.post_growth_updating()
         self.root_nitrogen.post_growth_updating()
-        self.soil.post_growth_updating()
+        
         
         # Update topological surfaces and volumes based on other evolved structural properties
         self.root_anatomy()

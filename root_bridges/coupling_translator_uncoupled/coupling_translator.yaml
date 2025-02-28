@@ -106,8 +106,6 @@ RootNitrogenModel:
       symplasmic_volume: 1.0
     xylem_volume:
       xylem_volume: 1.0
-    xylem_struct_mass:
-      xylem_struct_mass: 1.0
   RootGrowthModel:
     initial_struct_mass:
       initial_struct_mass: 1.0
@@ -125,6 +123,8 @@ RootNitrogenModel:
       thermal_time_since_emergence: 1.0
     distance_from_tip:
       distance_from_tip: 1.0
+    total_living_struct_mass:
+      total_living_struct_mass: 1.0
   RootCarbonModel:
     C_hexose_root:
       C_hexose_root: 1.0
@@ -166,16 +166,12 @@ RootWaterModel:
       apoplasmic_exchange_surface: 1.0
     cortex_exchange_surface:
       cortex_exchange_surface: 1.0
+    xylem_vessel_radii:
+      xylem_vessel_radii: 1.0
     xylem_volume:
       xylem_volume: 1.0
-    xylem_struct_mass:
-      xylem_struct_mass: 1.0
   RootCarbonModel: {}
-  RootNitrogenModel:
-    xylem_AA:
-      xylem_AA: 1.0
-    xylem_Nm:
-      xylem_Nm: 1.0
+  RootNitrogenModel: {}
   RootGrowthModel:
     length:
       length: 1.0
@@ -187,12 +183,8 @@ RootWaterModel:
       type: 1.0
   RootWaterModel: {}
   SoilModel:
-    soil_temperature:
-      soil_temperature: 1.0
     soil_water_pressure:
       water_potential_soil: 1.0
-    C_solutes_soil:
-      C_solutes_soil: 1.0
       
 SoilModel:
   RootAnatomy:
