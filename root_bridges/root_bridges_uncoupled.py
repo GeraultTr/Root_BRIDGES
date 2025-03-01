@@ -77,15 +77,10 @@ class Model(CompositeModel):
         self.soil()
 
         # Compute root growth from resulting states
-        self.root_growth()
+        self.root_growth(modules_to_update=[c for c in self.components if c.__class__.__name__ != "RootGrowthModel"])
 
         # Extend property dictionaries after growth
         self.soil.post_growth_updating()
-        self.root_anatomy.post_growth_updating()
-        self.root_water.post_growth_updating()
-        self.root_carbon.post_growth_updating()
-        self.root_nitrogen.post_growth_updating()
-        
         
         # Update topological surfaces and volumes based on other evolved structural properties
         self.root_anatomy()
