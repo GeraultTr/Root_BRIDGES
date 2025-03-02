@@ -60,7 +60,7 @@ class Model(CompositeModel):
         self.root_nitrogen = RootNitrogenModel(self.g, time_step, **parameters)
         self.soil = SoilModel(self.g, time_step, **parameters)
         self.soil_voxels = self.soil.voxels
-
+        
         # LINKING MODULES
         self.declare_data_and_couple_components(root=self.g, soil=self.soil_voxels,
                                            translator_path=os.path.join(root_bridges.__path__[0], "coupling_translator_uncoupled"),

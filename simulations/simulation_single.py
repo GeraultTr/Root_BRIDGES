@@ -37,8 +37,7 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_setting
     for scenario_name, scenario in scenarios.items():
         single_run(scenario, outputs_dirpath=os.path.join("outputs", str(scenario_name)),
                                                       simulation_length=simulation_length,
-                                                      echo=echo,
-                                                      log_settings=log_settings)
+                                                      echo=echo, log_settings=log_settings)
 
 
 if __name__ == '__main__':
