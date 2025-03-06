@@ -92,6 +92,9 @@ class SoilModel(RhizoInputsSoilModel):
     microbial_N: float = declare(default=0.03e-3, unit="adim", unit_comment="gN per g of dry soil", description="microbial N massic concentration in soil", 
                                         value_comment="", references="Fischer et al. 1966", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
+    Nm_fungus: float = declare(default=0., unit="adim", unit_comment="gN per g of dry soil", description="mycorrhiza N massic concentration in soil", 
+                                        value_comment="", references="Fischer et al. 1966", DOI="",
+                                       min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
     dissolved_mineral_N: float = declare(default=20e-6, unit="adim", unit_comment="gN per g of dry soil", description="dissolved mineral N massic concentration in soil",
                                         value_comment="", references="Fischer et al. 1966", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
@@ -554,35 +557,35 @@ class SoilModel(RhizoInputsSoilModel):
 
     # STATES
 
-    @state
+    #@state
     def _POC(self, POC, dry_soil_mass, degradation_POC, cells_release):
         return POC + (self.time_step_in_seconds / dry_soil_mass) * (
             cells_release
             - degradation_POC * dry_soil_mass
         )
     
-    @state
+    #@state
     def _PON(self, POC, dry_soil_mass, degradation_POC, cells_release):
         return POC + (self.time_step_in_seconds / dry_soil_mass) * (
             cells_release / self.CN_ratio_root_cells
             - degradation_POC *dry_soil_mass / self.CN_ratio_POM
         )
     
-    @state
+    #@state
     def _MAOC(self, MAOC, dry_soil_mass, degradation_microbial_OC, degradation_MAOC):
         return MAOC + (self.time_step_in_seconds / dry_soil_mass) * (
             degradation_microbial_OC * dry_soil_mass * self.microbial_proportion_of_MAOM
             - degradation_MAOC * dry_soil_mass
         )
     
-    @state
+    #@state
     def _MAON(self, MAON, dry_soil_mass, degradation_microbial_OC, degradation_MAOC):
         return MAON + (self.time_step_in_seconds / dry_soil_mass) * (
             degradation_microbial_OC * dry_soil_mass * self.microbial_proportion_of_MAOM / self.CN_ratio_microbial_biomass
             - degradation_MAOC * dry_soil_mass / self.CN_ratio_MAOM
         )
 
-    @state
+    #@state
     def _DOC(self, DOC, dry_soil_mass, degradation_microbial_OC, degradation_DOC, hexose_exudation, phloem_hexose_exudation, mucilage_secretion, amino_acids_diffusion_from_roots,  amino_acids_diffusion_from_xylem, amino_acids_uptake, amino_acid_transport):
         return DOC + (self.time_step_in_seconds / dry_soil_mass) * (
             degradation_microbial_OC * dry_soil_mass * (1 - self.microbial_proportion_of_MAOM)
@@ -596,7 +599,7 @@ class SoilModel(RhizoInputsSoilModel):
             + amino_acid_transport
         )
     
-    @state
+    #@state
     def _DON(self, DON, DOC, dry_soil_mass, degradation_microbial_OC, degradation_DOC, amino_acids_diffusion_from_roots,  amino_acids_diffusion_from_xylem, amino_acids_uptake, amino_acid_transport):
         return DON + (self.time_step_in_seconds / dry_soil_mass) * (
             degradation_microbial_OC * dry_soil_mass * (1 - self.microbial_proportion_of_MAOM) / self.CN_ratio_microbial_biomass
@@ -607,7 +610,7 @@ class SoilModel(RhizoInputsSoilModel):
             + amino_acid_transport) / self.CN_ratio_amino_acids
         )
     
-    @state
+    #@state
     def _microbial_C(self, microbial_C, dry_soil_mass, degradation_POC, degradation_MAOC, degradation_DOC, degradation_microbial_OC):
         """
         For microbial biomass C, the new concentrations results i) from the turnover of this pool, ii) from a fraction of
@@ -621,7 +624,7 @@ class SoilModel(RhizoInputsSoilModel):
             + degradation_microbial_OC * self.CUE_MbOC
         )
     
-    @state
+    #@state
     def _microbial_N(self, microbial_N, microbial_C, dry_soil_mass, DOC, DON, degradation_POC, degradation_MAOC, degradation_DOC, degradation_microbial_OC):
         """
         For microbial biomass C, the new concentrations results i) from the turnover of this pool, ii) from a fraction of
@@ -639,7 +642,7 @@ class SoilModel(RhizoInputsSoilModel):
         self.voxels["mineral_N_net_mineralization"] = dry_soil_mass * (balance - microbial_C / self.CN_ratio_microbial_biomass)
         return microbial_C / self.CN_ratio_microbial_biomass
     
-    @state
+    #@state
     def _CO2(self, CO2, dry_soil_mass, degradation_POC, degradation_MAOC, degradation_DOC, degradation_microbial_OC):
         return CO2 + (self.time_step_in_seconds / dry_soil_mass) * (
                 degradation_POC * (1 - self.CUE_POC)

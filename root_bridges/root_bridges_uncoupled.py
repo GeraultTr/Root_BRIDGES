@@ -73,15 +73,12 @@ class Model(CompositeModel):
     def run(self):
         self.apply_input_tables(tables=self.input_tables, to=self.components, when=self.time)
 
-        # Update environment boundary conditions
-        self.soil()
-
         # Compute root growth from resulting states
         self.root_growth(modules_to_update=[c for c in self.components if c.__class__.__name__ != "RootGrowthModel"])
 
-        # Extend property dictionaries after growth
-        self.soil.post_growth_updating()
-        
+        self.soil.compute_mtg_voxel_neighbors()
+        self.soil.get_from_voxel()
+
         # Update topological surfaces and volumes based on other evolved structural properties
         self.root_anatomy()
 
@@ -89,6 +86,11 @@ class Model(CompositeModel):
         self.root_water()
         self.root_carbon()
         self.root_nitrogen()
+
+        # Extend property dictionaries after growth
+        #self.soil.post_growth_updating()
+        # Update environment boundary conditions
+        self.soil()
 
         self.time += 1
 
