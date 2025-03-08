@@ -161,6 +161,10 @@ RootWaterModel:
       xylem_vessel_radii: 1.0
     xylem_volume:
       xylem_volume: 1.0
+    kr_symplasmic_water:
+      kr_symplasmic_water: 1.0
+    kr_apoplastic_water:
+      kr_apoplastic_water: 1.0
   RootCarbonModel: {}
   RootNitrogenModel: {}
   RootGrowthModel:
@@ -209,8 +213,10 @@ SoilModel:
     amino_acids_diffusion_from_xylem:
       diffusion_AA_soil_xylem: 12 * 6 # C molar mass * number of atoms 
   RootGrowthModel:
-    struct_mass:
-      struct_mass: 1.0
+    length:
+      length: 1.0
+    initial_length:
+      initial_length: 1.0
   RootWaterModel:
     water_uptake:
       radial_import_water: 1.0
