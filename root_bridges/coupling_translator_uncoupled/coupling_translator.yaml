@@ -180,6 +180,8 @@ RootWaterModel:
   SoilModel:
     soil_water_pressure:
       water_potential_soil: 1.0
+    soil_temperature:
+      soil_temperature: 1.0
       
 SoilModel:
   RootAnatomy:

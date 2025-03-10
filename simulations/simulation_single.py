@@ -4,7 +4,7 @@ import os, sys
 from root_bridges.root_bridges_uncoupled import Model
 # Utility packages
 from log.logging import Logger
-from analyze.analyze import analyze_data
+from analyze.analyze import analyze_data, test_output_range
 from initialize.initialize import MakeScenarios as ms
 
 
@@ -38,6 +38,7 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_setting
         single_run(scenario, outputs_dirpath=os.path.join("outputs", str(scenario_name)),
                                                       simulation_length=simulation_length,
                                                       echo=echo, log_settings=log_settings)
+        test_output_range(scenarios=[scenario_name], outputs_dirpath="outputs", test_file_dirpath="inputs/outputs_validation_root_cynaps_V0.xlsx")
 
 
 if __name__ == '__main__':
@@ -47,7 +48,7 @@ if __name__ == '__main__':
     #scenarios = ms.from_table(file_path="inputs/Scenarios_24_05.xlsx", which=["Drew_1975_high"])
     #scenarios = ms.from_table(file_path="inputs/Scenarios_24_05.xlsx", which=["Drew_1975_1"])
     # , "Drew_1975_1", "Drew_1975_low", "Drew_1975_high"
-    simulate_scenarios(scenarios, simulation_length=2500, log_settings=Logger.light_log)
+    simulate_scenarios(scenarios, simulation_length=24, log_settings=Logger.medium_log_focus_properties)
 
     # In the end put the system to sleep, Windows only
     #os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
