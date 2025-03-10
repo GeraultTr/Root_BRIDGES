@@ -110,6 +110,8 @@ RootNitrogenModel:
       struct_mass_produced: 1.0
     root_hairs_struct_mass_produced:
       root_hairs_struct_mass_produced: 1.0
+    hexose_consumption_by_growth:
+      hexose_consumption_by_growth: 1.0
     thermal_time_since_emergence:
       thermal_time_since_emergence: 1.0
     distance_from_tip:
