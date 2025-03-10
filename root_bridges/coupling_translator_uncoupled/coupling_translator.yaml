@@ -123,6 +123,8 @@ RootNitrogenModel:
       C_hexose_root: 1.0
   RootNitrogenModel: {}
   RootWaterModel:
+    radial_import_water:
+      radial_import_water: 1.0
     axial_export_water_up:
       axial_export_water_up: 1.0
     axial_import_water_down:

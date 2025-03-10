@@ -67,7 +67,11 @@ class Model(CompositeModel):
                                            components=(self.root_growth, self.root_anatomy, self.root_water, self.root_carbon, self.root_nitrogen, self.soil))
 
         # Some initialization must be performed after linking modules
-        self.root_water.post_coupling_init()
+        #self.root_water.post_coupling_init()
+        self.root_water.collar_children = self.root_growth.collar_children
+        self.root_water.collar_skip = self.root_growth.collar_skip
+        self.root_nitrogen.collar_children = self.root_growth.collar_children
+        self.root_nitrogen.collar_skip = self.root_growth.collar_skip
 
 
     def run(self):
