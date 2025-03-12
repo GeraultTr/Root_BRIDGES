@@ -169,6 +169,8 @@ RootWaterModel:
       kr_symplasmic_water: 1.0
     kr_apoplastic_water:
       kr_apoplastic_water: 1.0
+    xylem_differentiation_factor:
+      xylem_differentiation_factor: 1.0
   RootCarbonModel: {}
   RootNitrogenModel: {}
   RootGrowthModel:
