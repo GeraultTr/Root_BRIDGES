@@ -1,6 +1,6 @@
 [submodule "rhizodep"]
 	path = rhizodep
-	url = https://github.com/GeraultTr/Rhizodep.git
+	url = git@github.com:GeraultTr/Rhizodep.git
 [submodule "root_cynaps"]
 	path = root_cynaps
-	url = https://github.com/GeraultTr/Root_CyNAPS.git
+	url = git@github.com:GeraultTr/Root_CyNAPS.git
