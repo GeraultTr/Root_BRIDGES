@@ -17,12 +17,18 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
                     recording_shoot=False,
                     echo=echo, **log_settings)
     
+    stop_file = os.path.join(outputs_dirpath, "Delete_to_Stop")
+    open(stop_file, "w").close()
+
     try:
         for _ in range(simulation_length):
             # Placed here also to capture mtg initialization
             #logger()
             logger.run_and_monitor_model_step()
             #root_bridges.run()
+
+            if not os.path.exists(stop_file):
+                raise KeyboardInterrupt
 
     except (ZeroDivisionError, KeyboardInterrupt):
         logger.exceptions.append(sys.exc_info())
@@ -38,7 +44,8 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_setting
         single_run(scenario, outputs_dirpath=os.path.join("outputs", str(scenario_name)),
                                                       simulation_length=simulation_length,
                                                       echo=echo, log_settings=log_settings)
-        # test_output_range(scenarios=[scenario_name], outputs_dirpath="outputs", test_file_dirpath="inputs/outputs_validation_root_cynaps_V0.xlsx")
+        
+        test_output_range(scenarios=[scenario_name], outputs_dirpath="outputs", test_file_dirpath="inputs/outputs_validation_root_cynaps_V0.xlsx")
 
         analyze_data(scenarios=[scenario_name], outputs_dirpath="outputs", inputs_dirpath="inputs",
                      on_sums=True,
@@ -49,15 +56,7 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_setting
 
 
 if __name__ == '__main__':
-    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref"])
-    scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_debug"])
-    #scenarios = ms.from_table(file_path="inputs/Scenarios_24_05.xlsx", which=["Drew_1975_1", "Drew_1975_low", "Drew_1975_high"])
-    #scenarios = ms.from_table(file_path="inputs/Scenarios_24_05.xlsx", which=["no_root_hairs_patch", "no_root_hairs"])
-    #scenarios = ms.from_table(file_path="inputs/Scenarios_24_05.xlsx", which=["Drew_1975_high"])
-    #scenarios = ms.from_table(file_path="inputs/Scenarios_24_05.xlsx", which=["Drew_1975_1"])
-    # , "Drew_1975_1", "Drew_1975_low", "Drew_1975_high"
-    simulate_scenarios(scenarios, simulation_length=24*60, log_settings=Logger.light_log)
-
-    # In the end put the system to sleep, Windows only
-    #os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
+    scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref"])
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_debug"])
+    simulate_scenarios(scenarios, simulation_length=24*20, log_settings=Logger.heavy_log)
     
