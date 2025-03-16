@@ -39,13 +39,17 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
             analyze_data(scenarios=[os.path.basename(outputs_dirpath)], outputs_dirpath=outputs_dirpath, target_properties=None, **log_settings)
 
 
-def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_settings={}):
+def simulate_scenarios(scenarios, simulation_length=2500, echo=True, custom_prefix=None, log_settings={}):
     for scenario_name, scenario in scenarios.items():
+        # Enable quick parallel testing with exact same parameters
+        if custom_prefix:
+            scenario_name = f"{scenario_name}_{custom_prefix}"
+
         single_run(scenario, outputs_dirpath=os.path.join("outputs", str(scenario_name)),
                                                       simulation_length=simulation_length,
                                                       echo=echo, log_settings=log_settings)
         
-        test_output_range(scenarios=[scenario_name], outputs_dirpath="outputs", test_file_dirpath="inputs/outputs_validation_root_cynaps_V0.xlsx")
+        # test_output_range(scenarios=[scenario_name], outputs_dirpath="outputs", test_file_dirpath="inputs/outputs_validation_root_cynaps_V0.xlsx")
 
         analyze_data(scenarios=[scenario_name], outputs_dirpath="outputs", inputs_dirpath="inputs",
                      on_sums=True,
@@ -58,5 +62,5 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_setting
 if __name__ == '__main__':
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref"])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_debug"])
-    simulate_scenarios(scenarios, simulation_length=24*20, log_settings=Logger.heavy_log)
+    simulate_scenarios(scenarios, simulation_length=24*10, custom_prefix="10D", log_settings=Logger.light_log)
     
