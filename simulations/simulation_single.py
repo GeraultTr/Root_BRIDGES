@@ -49,7 +49,7 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, custom_pref
                                                       simulation_length=simulation_length,
                                                       echo=echo, log_settings=log_settings)
         
-        # test_output_range(scenarios=[scenario_name], outputs_dirpath="outputs", test_file_dirpath="inputs/outputs_validation_root_cynaps_V0.xlsx")
+        test_output_range(scenarios=[scenario_name], outputs_dirpath="outputs", test_file_dirpath="inputs/outputs_validation_root_cynaps_V0.xlsx")
 
         analyze_data(scenarios=[scenario_name], outputs_dirpath="outputs", inputs_dirpath="inputs",
                      on_sums=True,
@@ -62,5 +62,5 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, custom_pref
 if __name__ == '__main__':
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref"])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_debug"])
-    simulate_scenarios(scenarios, simulation_length=24*10, custom_prefix="10D", log_settings=Logger.light_log)
+    simulate_scenarios(scenarios, simulation_length=24*20, custom_prefix="20D", log_settings=Logger.medium_log_focus_properties)
     
