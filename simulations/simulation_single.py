@@ -45,6 +45,8 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, custom_pref
         if custom_prefix:
             scenario_name = f"{scenario_name}_{custom_prefix}"
 
+        print(f"[INFO] Launching {scenario_name}...")
+        
         single_run(scenario, outputs_dirpath=os.path.join("outputs", str(scenario_name)),
                                                       simulation_length=simulation_length,
                                                       echo=echo, log_settings=log_settings)
@@ -62,5 +64,5 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, custom_pref
 if __name__ == '__main__':
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref"])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_debug"])
-    simulate_scenarios(scenarios, simulation_length=24*20, custom_prefix="20D", log_settings=Logger.medium_log_focus_properties)
+    simulate_scenarios(scenarios, simulation_length=24*39, custom_prefix="39D", log_settings=Logger.heavy_log)
     
