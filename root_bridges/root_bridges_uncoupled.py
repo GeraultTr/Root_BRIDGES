@@ -7,7 +7,7 @@ from root_bridges.soil_model import SoilModel
 
 # Untouched models
 from rhizodep.root_carbon import RootCarbonModel
-from root_cynaps.root_cynaps import RootNitrogenModel
+from root_cynaps.root_nitrogen import RootNitrogenModel
 from rhizodep.root_growth import RootGrowthModel
 from rhizodep.root_anatomy import RootAnatomy
 from root_cynaps.root_water import RootWaterModel
@@ -60,7 +60,10 @@ class Model(CompositeModel):
         self.root_nitrogen = RootNitrogenModel(self.g, time_step, **parameters)
         self.soil = SoilModel(self.g, time_step, **parameters)
         self.soil_voxels = self.soil.voxels
-        
+
+        root_water_initial_values = {state_var:getattr(self.root_water, state_var)[1] for state_var in self.root_water.state_variables}
+        print(root_water_initial_values)
+
         # LINKING MODULES
         self.declare_data_and_couple_components(root=self.g, soil=self.soil_voxels,
                                            translator_path=os.path.join(root_bridges.__path__[0], "coupling_translator_uncoupled"),
@@ -91,8 +94,6 @@ class Model(CompositeModel):
         self.root_carbon()
         self.root_nitrogen()
 
-        # Extend property dictionaries after growth
-        #self.soil.post_growth_updating()
         # Update environment boundary conditions
         self.soil()
 

@@ -1,7 +1,8 @@
 # Public packages
 import os, sys
 # Model packages
-from root_bridges.root_bridges_uncoupled import Model
+from rhizodep.rhizodep import Model as RhizoDepModel
+from root_cynaps.root_cynaps import Model as RootCyNAPSModel
 # Utility packages
 from log.logging import Logger
 from analyze.analyze import analyze_data, test_output_range
@@ -9,9 +10,9 @@ from initialize.initialize import MakeScenarios as ms
 
 
 def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo=True, log_settings={}, analyze=False):
-    root_bridges = Model(time_step=3600, **scenario)
+    rhizodep = RhizoDepModel(time_step=3600, **scenario)
 
-    logger = Logger(model_instance=root_bridges, components=root_bridges.components,
+    logger = Logger(model_instance=rhizodep, components=rhizodep.components,
                     outputs_dirpath=outputs_dirpath, 
                     time_step_in_hours=1, logging_period_in_hours=24,
                     recording_shoot=False,
@@ -23,9 +24,9 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
     try:
         for _ in range(simulation_length):
             # Placed here also to capture mtg initialization
-            # logger()
-            logger.run_and_monitor_model_step()
-            # root_bridges.run()
+            logger()
+            # logger.run_and_monitor_model_step()
+            rhizodep.run()
 
             if not os.path.exists(stop_file):
                 raise KeyboardInterrupt

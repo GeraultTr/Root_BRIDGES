@@ -18,8 +18,6 @@ RootAnatomy:
 
 RootCarbonModel:
   RootAnatomy:
-    apoplasmic_exchange_surface:
-      apoplasmic_exchange_surface: 1.0
     cortex_exchange_surface:
       cortex_exchange_surface: 1.0
     endodermis_conductance_factor:
@@ -157,8 +155,6 @@ RootGrowthModel:
 
 RootWaterModel:
   RootAnatomy:
-    apoplasmic_exchange_surface:
-      apoplasmic_exchange_surface: 1.0
     cortex_exchange_surface:
       cortex_exchange_surface: 1.0
     xylem_vessel_radii:
