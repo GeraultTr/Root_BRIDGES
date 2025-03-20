@@ -1,4 +1,5 @@
 import os
+import numpy as np
 
 import root_bridges
 
@@ -31,7 +32,7 @@ class Model(CompositeModel):
     4. Use Model.run() in a for loop to perform the computations of a time step on the passed MTG File
     """
 
-    def __init__(self, time_step: int, **scenario):
+    def __init__(self, time_step: int, target_day: int, **scenario):
         """
         DESCRIPTION
         ----------
@@ -61,6 +62,11 @@ class Model(CompositeModel):
         self.soil = SoilModel(self.g, time_step, **parameters)
         self.soil_voxels = self.soil.voxels
 
+        self.root_water_initial_values = {state_var:getattr(self.root_water, state_var)[1] for state_var in self.root_water.state_variables}
+        self.root_nitrogen_initial_values = {state_var:getattr(self.root_nitrogen, state_var)[1] for state_var in self.root_nitrogen.state_variables}
+        self.root_water_total_initial_values = {state_var:getattr(self.root_water, state_var)[1] for state_var in self.root_water.plant_scale_state}
+        self.root_nitrogen_total_initial_values = {state_var:getattr(self.root_nitrogen, state_var)[1] for state_var in self.root_nitrogen.plant_scale_state}
+
         # LINKING MODULES
         self.declare_data_and_couple_components(root=self.g, soil=self.soil_voxels,
                                            translator_path=os.path.join(root_bridges.__path__[0], "coupling_translator_uncoupled"),
@@ -73,26 +79,46 @@ class Model(CompositeModel):
         self.root_nitrogen.collar_children = self.root_growth.collar_children
         self.root_nitrogen.collar_skip = self.root_growth.collar_skip
 
+        self.reinitialize_step = target_day * 24
+
 
     def run(self):
-        self.apply_input_tables(tables=self.input_tables, to=self.components, when=self.time)
+        if self.time <= self.reinitialize_step:
+            self.apply_input_tables(tables=self.input_tables, to=self.components, when=self.time)
+        
+        if self.time == self.reinitialize_step:
+            print("Reinitializing Water and Nitrogen for the next 24h of interest")
+            for prop, initial_value in self.root_water_initial_values.items():
+                getattr(self.root_water, prop).update({v: initial_value for v in self.root_water.vertices})
+            for prop, initial_value in self.root_nitrogen_initial_values.items():
+                getattr(self.root_nitrogen, prop).update({v: initial_value for v in self.root_nitrogen.vertices})
+            for prop, initial_value in self.root_water_total_initial_values.items():
+                getattr(self.root_water, prop).update({1: initial_value})
+            for prop, initial_value in self.root_nitrogen_total_initial_values.items():
+                getattr(self.root_nitrogen, prop).update({1: initial_value})
+                
+        if self.time < self.reinitialize_step:
+            
+            # Compute root growth from resulting states
+            self.root_growth(modules_to_update=[c for c in self.components if c.__class__.__name__ != "RootGrowthModel"])
 
-        # Compute root growth from resulting states
-        self.root_growth(modules_to_update=[c for c in self.components if c.__class__.__name__ != "RootGrowthModel"])
+            self.soil.compute_mtg_voxel_neighbors()
+            self.soil.get_from_voxel()
 
-        self.soil.compute_mtg_voxel_neighbors()
-        self.soil.get_from_voxel()
-
-        # Update topological surfaces and volumes based on other evolved structural properties
-        self.root_anatomy()
-
+            # Update topological surfaces and volumes based on other evolved structural properties
+            self.root_anatomy()
+        
         # Compute state variations for water and then carbon and nitrogen
         self.root_water()
-        self.root_carbon()
+
+        if self.time < self.reinitialize_step:
+            self.root_carbon()
+
         self.root_nitrogen()
 
-        # Update environment boundary conditions
-        self.soil()
+        if self.time < self.reinitialize_step:
+            # Update environment boundary conditions
+            self.soil()
 
         self.time += 1
 

@@ -1,5 +1,5 @@
 # Public packages
-import os, sys
+import os, traceback
 # Model packages
 from root_bridges.root_bridges_uncoupled import Model
 # Utility packages
@@ -17,7 +17,7 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
                     recording_shoot=False,
                     echo=echo, **log_settings)
     
-    stop_file = os.path.join(outputs_dirpath, "Delete_to_Stop")
+    stop_file = os.path.join(outputs_dirpath + " *", "Delete_to_Stop")
     open(stop_file, "w").close()
 
     try:
@@ -30,8 +30,8 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
             if not os.path.exists(stop_file):
                 raise KeyboardInterrupt
 
-    except (ZeroDivisionError, KeyboardInterrupt):
-        logger.exceptions.append(sys.exc_info())
+    except:
+        logger.exceptions.append(traceback.format_exc())
 
     finally:
         logger.stop()
@@ -44,14 +44,12 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, custom_pref
         # Enable quick parallel testing with exact same parameters
         if custom_prefix:
             scenario_name = f"{scenario_name}_{custom_prefix}"
-
-        print(f"[INFO] Launching {scenario_name}...")
         
         single_run(scenario, outputs_dirpath=os.path.join("outputs", str(scenario_name)),
                                                       simulation_length=simulation_length,
                                                       echo=echo, log_settings=log_settings)
         
-        test_output_range(scenarios=[scenario_name], outputs_dirpath="outputs", test_file_dirpath="inputs/outputs_validation_root_cynaps_V0.xlsx")
+        # test_output_range(scenarios=[scenario_name], outputs_dirpath="outputs", test_file_dirpath="inputs/outputs_validation_root_cynaps_V0.xlsx")
 
         analyze_data(scenarios=[scenario_name], outputs_dirpath="outputs", inputs_dirpath="inputs",
                      on_sums=True,
@@ -62,8 +60,6 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, custom_pref
 
 
 if __name__ == '__main__':
-    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["Rhizodep_ref"])
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref"])
-    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_debug"])
-    simulate_scenarios(scenarios, simulation_length=24*40, custom_prefix="40D", log_settings=Logger.light_log)
+    simulate_scenarios(scenarios, simulation_length=24*40, custom_prefix="40D_debug", log_settings=Logger.light_log)
     
