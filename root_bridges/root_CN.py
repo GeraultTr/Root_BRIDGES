@@ -85,7 +85,7 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
 
 
     @state
-    def _C_hexose_root(self, vertex_index, C_hexose_root, struct_mass, living_root_hairs_struct_mass, hexose_exudation, hexose_uptake_from_soil,
+    def _C_hexose_root(self, vertex_index, C_hexose_root, living_struct_mass, hexose_exudation, hexose_uptake_from_soil,
                            mucilage_secretion, cells_release, maintenance_respiration,
                            hexose_consumption_by_growth, hexose_consumption_by_fungus, hexose_diffusion_from_phloem,
                            hexose_active_production_from_phloem, sucrose_loading_in_phloem,
@@ -97,7 +97,7 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
         - Amino acid catabolism releasing hexose
         - Nitrogen metabolism related respiration costs
         """
-        balance = C_hexose_root + (self.time_step / (struct_mass + living_root_hairs_struct_mass)) * (
+        balance = C_hexose_root + (self.time_step / living_struct_mass) * (
                 - hexose_exudation
                 + hexose_uptake_from_soil
                 - mucilage_secretion
@@ -117,48 +117,13 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
         
         if balance < 0.:
             # If a deficit is to be recorded, we set the concentration to 0 and record the deficit
-            deficit = - balance * (struct_mass + living_root_hairs_struct_mass) / self.time_step
+            deficit = - balance * living_struct_mass / self.time_step
             self.deficit_hexose_root[vertex_index] = deficit if deficit > 1e-20 else 0.
             return 0.
         else:
             # Otherwise there is no deficit and we directly return the balance
             self.deficit_hexose_root[vertex_index] = 0.
             return balance
-        
-
-    @state
-    def _AA(self, vertex_index, AA, struct_mass, living_root_hairs_struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis, 
-            storage_synthesis, storage_catabolism, AA_catabolism, amino_acids_consumption_by_growth, deficit_AA):
-        """
-        EDIT : replaced structural nitrogen synthesis by rhizodep input in balance
-        """
-
-        if struct_mass > 0:
-            balance = AA + (self.time_step / (struct_mass + living_root_hairs_struct_mass)) * (
-                    diffusion_AA_phloem
-                    + import_AA
-                    - diffusion_AA_soil
-                    - export_AA
-                    + AA_synthesis
-                    - storage_synthesis * self.r_AA_stor
-                    + storage_catabolism / self.r_AA_stor
-                    - AA_catabolism
-                    - amino_acids_consumption_by_growth
-                    - deficit_AA
-            )
-
-            if balance < 0.:
-                # If a deficit is to be recorded, we set the concentration to 0 and record the deficit
-                deficit = - balance * (struct_mass + living_root_hairs_struct_mass) / self.time_step
-                self.deficit_AA[vertex_index] = deficit if deficit > 1e-20 else 0.
-                return 0.
-            else:
-                # Otherwise there is no deficit and we directly return the balance
-                self.deficit_AA[vertex_index] = 0.
-                return balance
-            
-        else:
-            return 0
         
 
     @rate
@@ -169,6 +134,7 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
             return 0
 
         else:
+            # Removed condition to limit based on deficit compared to RhizoDep
             max_unloading_rate = self.max_unloading_rate * (1 + hexose_consumption_by_growth /
                                                             self.reference_rate_of_hexose_consumption_by_growth)
             max_unloading_rate *= self.temperature_modification(soil_temperature=soil_temperature,
@@ -180,9 +146,3 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
             return max(2. * max_unloading_rate * C_sucrose_root * phloem_exchange_surface / (
                     self.Km_unloading + C_sucrose_root), 0)
         
-    #@totalrate
-    def _net_hexose_from_phloem(self, hexose_diffusion_from_phloem, hexose_active_production_from_phloem, sucrose_loading_in_phloem):
-        """
-        net flux from phloem to provide to shoot model
-        """
-        return sum(hexose_diffusion_from_phloem.values()) + sum(hexose_active_production_from_phloem.values()) - sum(sucrose_loading_in_phloem.values())

@@ -1,6 +1,7 @@
 # Public packages
 import os, traceback, time
 import multiprocessing as mp
+import numpy as np
 # Model packages
 from root_bridges.root_bridges_24h_stops import Model
 # Utility packages
@@ -68,7 +69,9 @@ if __name__ == '__main__':
     scenario = list(scenarios.values())[0]
 
     # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_debug"])
-    target_days = [ 5, 7, 10, 20, 30, 40, 50] #, 60, 70, 80, 90, 100]
+    # target_days = [ 5, 7, 10, 20, 30, 40, 50, 60]
+    target_days = np.arange(10, 61, 1)
+    # target_days = [50]
     processes = []
     max_processes = mp.cpu_count()
     for day in target_days:

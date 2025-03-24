@@ -8,7 +8,8 @@ if __name__ == '__main__':
     # scenarios = ["Drew_1975_low", "Drew_1975_1"]
     #scenarios = ["Drew_1975_low"]
     # scenarios = ["RC_ref_30D_debug"]
-    target_days = [ 5, 7, 10, 20, 30, 40, 50] # , 60, 70, 80, 90, 100]
+    target_days = [ 5, 7, 10, 20, 30, 40, 50, 60] #, 70, 80, 90, 100]
+    # target_days = [50]
     scenarios = [f"RC_ref_{day}D" for day in target_days]
 
     output_path = "outputs"
@@ -18,11 +19,12 @@ if __name__ == '__main__':
     # test_output_range(scenarios=scenarios, outputs_dirpath="outputs", test_file_dirpath="inputs/outputs_validation_root_cynaps_V0.xlsx")
 
     analyze_data(scenarios=scenarios, outputs_dirpath=output_path, inputs_dirpath="inputs",
-                     on_sums=True,
+                     on_sums=False,
                      on_performance=False,
-                     animate_raw_logs=False,
+                     animate_raw_logs=True,
                      target_properties=None
                      )
+    
     # In the end put the system to sleep, Windows only
     #os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
     

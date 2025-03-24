@@ -56,7 +56,6 @@ class RootGrowthModelCoupled(RootGrowthModel):
     def __init__(self, g=None ,time_step=3600, **scenario):
         """Pass to inherited init, necessary with data classes"""
         super().__init__(g, time_step, **scenario)
-        self.vertex_index.update({vid: vid for vid in self.vertices})
 
  
 
@@ -357,10 +356,13 @@ class RootGrowthModelCoupled(RootGrowthModel):
                 lateral_elongation_possibility = max(apex.nitrate_transporters_affinity_factor * self.main_roots_growth_extender, 1)
             else:
                 lateral_elongation_possibility = 1
+
             # We specifically recomputes the growth duration:
-            ramif.growth_duration = self.GDs * (2. * ramif.radius) ** 2 * lateral_elongation_possibility
-            # ramif.growth_duration = self.calculate_growth_duration(radius=ramif.radius, index=ramif.index(),
-            #                                                        root_order=ramif.root_order)
+            if self.simple_growth_duration:
+                ramif.growth_duration = self.GDs * (2. * ramif.radius) ** 2 * lateral_elongation_possibility
+            else:
+                ramif.growth_duration = self.calculate_growth_duration(radius=ramif.radius, index=ramif.index(),
+                                                                       root_order=ramif.root_order)
             # We specify the exact time since formation:
             ramif.actual_time_since_primordium_formation = actual_time_since_formation
             ramif.thermal_time_since_primordium_formation = actual_time_since_formation * temperature_time_adjustment
@@ -972,31 +974,6 @@ class RootGrowthModelCoupled(RootGrowthModel):
                 n.dist_to_ramif += n.actual_elongation
 
 
-    @segmentation
-    @state
-    def segmentation_and_primordia_formation(self):
-        """
-        This function considers segmentation and primordia formation across the whole root MTG.
-        :return:
-        """
-        super().segmentation_and_primordia_formation()
-        self.post_growth_updating()
-
-
-    def post_growth_updating(self):
-        for vid in self.vertices:
-            if vid not in self.amino_acids_consumption_by_growth:
-                parent = self.g.parent(vid)
-                # we partition the initial flow in the parent accounting for mass fraction
-                # We use struct_mass, the resulting structural mass after growth
-                mass_fraction = self.struct_mass[vid] / (self.struct_mass[vid] + self.struct_mass[parent])
-                self.amino_acids_consumption_by_growth.update({vid: self.amino_acids_consumption_by_growth[parent] * mass_fraction,
-                                            parent: self.amino_acids_consumption_by_growth[parent] * (1 - mass_fraction)})
-            if vid not in self.vertex_index:
-                # We also increment the vertex identifiers to be accesses in deficits
-                self.vertex_index[vid] = vid
-
-
     @postsegmentation
     @state
     def root_hairs_dynamics(self):
@@ -1383,7 +1360,3 @@ class RootGrowthModelCoupled(RootGrowthModel):
                                                  )
             
             return new_child
-
-    def __call__(self, *args, external_variables={}):
-        super().__call__(*args)
-        self.post_growth_updating()

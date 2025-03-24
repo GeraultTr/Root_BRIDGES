@@ -1,5 +1,4 @@
 import os
-import numpy as np
 
 import root_bridges
 
@@ -62,7 +61,7 @@ class Model(CompositeModel):
         self.soil = SoilModel(self.g, time_step, **parameters)
         self.soil_voxels = self.soil.voxels
 
-        self.root_water_initial_values = {state_var:getattr(self.root_water, state_var)[1] for state_var in self.root_water.state_variables}
+        self.root_water_initial_values = {state_var:getattr(self.root_water, state_var)[1] for state_var in self.root_water.state_variables if state_var not in ("K", "xylem_water")}
         self.root_nitrogen_initial_values = {state_var:getattr(self.root_nitrogen, state_var)[1] for state_var in self.root_nitrogen.state_variables}
         self.root_water_total_initial_values = {state_var:getattr(self.root_water, state_var)[1] for state_var in self.root_water.plant_scale_state}
         self.root_nitrogen_total_initial_values = {state_var:getattr(self.root_nitrogen, state_var)[1] for state_var in self.root_nitrogen.plant_scale_state}
