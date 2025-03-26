@@ -32,6 +32,7 @@ RootCarbonModel:
       symplasmic_volume: 1.0
     xylem_volume:
       xylem_volume: 1.0
+      
   RootCarbonModel: {}
   RootNitrogenModel: {}
   RootGrowthModel:
@@ -93,6 +94,8 @@ RootNitrogenModel:
       symplasmic_volume: 1.0
     xylem_volume:
       xylem_volume: 1.0
+    total_phloem_volume:
+      total_phloem_volume: 1.0
   RootGrowthModel:
     initial_struct_mass:
       initial_struct_mass: 1.0

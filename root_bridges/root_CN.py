@@ -6,13 +6,12 @@ from rhizodep.root_carbon import RootCarbonModel
 from root_cynaps.root_nitrogen import RootNitrogenModel
 
 
-family = "metabolic"
+# Deported class inheritance to include this information in the __globals__, so that it can be picked by decorators to merge the steps of all classes
+inheriting = (RootCarbonModel, RootNitrogenModel)
 
 
 @dataclass
-class RootCNUnified(RootCarbonModel, RootNitrogenModel):
-
-    family = family
+class RootCNUnified(*inheriting):
 
     # INPUTS
     # FROM GROWTH MODEL
@@ -24,7 +23,7 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
 
     N_metabolic_respiration: float = declare(default=0., unit="mol.s-1", unit_comment="of carbon", description="Respiration related to nitrogen metabolism", 
                                             min_value="", max_value="", value_comment="", references="", DOI="",
-                                             variable_type="state_variable", by="model_carbon", state_variable_type="extensive", edit_by="user")
+                                             variable_type="state_variable", by="model_carbon", state_variable_type="NonInertialExtensive", edit_by="user")
     total_hexose_diffusion_from_phloem: float = declare(default=0., unit="umol of C.g-1 mstruc.h-1", unit_comment="", description="Property computed to compare with shoot model unloading",
                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                     variable_type="plant_scale_state", by="model_carbon", state_variable_type="", edit_by="user")
@@ -97,6 +96,8 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
         - Amino acid catabolism releasing hexose
         - Nitrogen metabolism related respiration costs
         """
+        # print({k: v for k, v in locals().items() if k != 'self'})
+
         balance = C_hexose_root + (self.time_step / living_struct_mass) * (
                 - hexose_exudation
                 + hexose_uptake_from_soil
@@ -127,7 +128,7 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
         
 
     @rate
-    def _hexose_active_production_from_phloem(self, length, phloem_exchange_surface, C_sucrose_root, C_hexose_root,
+    def _hexose_active_production_from_phloem(self, length, phloem_exchange_surface,
                                               hexose_consumption_by_growth, soil_temperature):
         # We consider all the cases where no net exchange should be allowed:
         if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
@@ -143,6 +144,26 @@ class RootCNUnified(RootCarbonModel, RootNitrogenModel):
                                                                 B=self.phloem_unloading_B,
                                                                 C=self.phloem_unloading_C)
             
-            return max(2. * max_unloading_rate * C_sucrose_root * phloem_exchange_surface / (
-                    self.Km_unloading + C_sucrose_root), 0)
+            return max(2. * max_unloading_rate * self.C_sucrose_phloem[1] * phloem_exchange_surface / (
+                    self.Km_unloading + self.C_sucrose_phloem[1]), 0)
+        
+    # Superimposing original
+    @rate
+    def _hexose_diffusion_from_phloem(self, length, phloem_exchange_surface, C_hexose_root,
+                                             hexose_consumption_by_growth, living_struct_mass, symplasmic_volume, soil_temperature):
+        # We consider all the cases where no net exchange should be allowed:
+        if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
+            return 0
+
+        else:
+            phloem_permeability = self.phloem_permeability * (1 + hexose_consumption_by_growth /
+                                                                self.reference_rate_of_hexose_consumption_by_growth)
+            phloem_permeability *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                                    T_ref=self.phloem_unloading_T_ref,
+                                                                    A=self.phloem_unloading_A,
+                                                                    B=self.phloem_unloading_B,
+                                                                    C=self.phloem_unloading_C)
+
+            return 2. * phloem_permeability * ((self.C_sucrose_phloem[1] * self.total_living_struct_mass[1] / self.total_phloem_volume[1]) 
+                                                - (C_hexose_root / 2.) * (living_struct_mass / symplasmic_volume)) * phloem_exchange_surface
         

@@ -10,9 +10,6 @@ from metafspm.component import declare
 from rhizodep.soil_model import RhizoInputsSoilModel
 
 
-family = "soil"
-
-
 @dataclass
 class SoilModel(RhizoInputsSoilModel):
     """
