@@ -13,7 +13,7 @@ if __name__ == '__main__':
     # target_days = [ 5, 7, 10, 20, 30, 40, 50, 60] #, 70, 80, 90, 100]
     # target_days = np.arange(10, 61, 1)
     # target_days = [10, 20, 30, 40, 60]
-    target_days = [50]
+    target_days = [40]
     scenarios = [f"RC_ref_{day}D" for day in target_days]
 
     output_path = "outputs"
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     # test_output_range(scenarios=scenarios, outputs_dirpath="outputs", test_file_dirpath="inputs/outputs_validation_root_cynaps_V0.xlsx")
 
     analyze_data(scenarios=scenarios, outputs_dirpath=output_path, inputs_dirpath="inputs",
-                     on_sums=False,
+                     on_sums=True,
                      on_performance=False,
                      animate_raw_logs=True,
                      target_properties=None

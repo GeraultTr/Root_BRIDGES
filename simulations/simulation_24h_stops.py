@@ -71,7 +71,7 @@ if __name__ == '__main__':
     # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_debug"])
     # target_days = [ 5, 7, 10, 20, 30, 40, 50, 60]
     # target_days = np.arange(10, 61, 1)
-    target_days = [49]
+    target_days = [40]
     processes = []
     max_processes = mp.cpu_count()
     for day in target_days:
