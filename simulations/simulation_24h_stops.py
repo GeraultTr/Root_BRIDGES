@@ -65,13 +65,14 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, custom_pref
 if __name__ == '__main__':
     # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["Rhizodep_ref"])
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref"])
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_no_hair"])
     scenario_name = list(scenarios.keys())[0]
     scenario = list(scenarios.values())[0]
 
     # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_debug"])
     # target_days = [ 5, 7, 10, 20, 30, 40, 50, 60]
     # target_days = np.arange(10, 61, 1)
-    target_days = [40]
+    target_days = [125]
     processes = []
     max_processes = mp.cpu_count()
     for day in target_days:
@@ -82,13 +83,13 @@ if __name__ == '__main__':
                     processes.remove(proc)
             time.sleep(1)
 
-        current_scenario_name = f"{str(scenario_name)}_{day}D"
+        current_scenario_name = f"{str(scenario_name)}_{day}D" + "_images"
 
         p = mp.Process(target=single_run, kwargs=dict(scenario=scenario, 
                                                       outputs_dirpath=os.path.join("outputs", current_scenario_name),
                                                       target_day=day, simulation_length=(day + 1) * 24,
                                                       echo=True,
-                                                      log_settings=Logger.light_log))
+                                                      log_settings=Logger.heavy_log))
         p.start()
         processes.append(p)
     
