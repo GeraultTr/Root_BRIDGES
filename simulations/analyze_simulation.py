@@ -14,9 +14,10 @@ if __name__ == '__main__':
     # target_days = [ 5, 7, 10, 20, 30, 40, 50, 60] #, 70, 80, 90, 100]
     # target_days = np.arange(10, 61, 1)
     # target_days = [10, 20, 30, 40, 50, 60]
-    target_days = [125]
-    # scenarios = [f"RC_ref_{day}D" for day in target_days]
-    scenarios = [f"RC_ref_{day}D" + "_images" for day in target_days]
+    target_days = [40]
+    scenarios = [f"RC_ref_{day}D" for day in target_days]
+    # scenarios = [f"RC_ref_high_{day}D" for day in target_days]
+    # scenarios = [f"RC_ref_{day}D" + "_images" for day in target_days]
     # scenarios = [f"RC_no_hair_{day}D" for day in target_days]
     # scenarios = [f"RC_ref_{day}D" for day in target_days] + [f"RC_no_hair_{day}D" for day in target_days]
 
@@ -26,12 +27,12 @@ if __name__ == '__main__':
 
     # test_output_range(scenarios=scenarios, outputs_dirpath="outputs", test_file_dirpath="inputs/outputs_validation_root_cynaps_V0.xlsx")
 
-    post_compress_gltf(os.path.join(output_path, scenarios[0], "root_images"))
+    # post_compress_gltf(os.path.join(output_path, scenarios[0], "root_images"))
 
     analyze_data(scenarios=scenarios, outputs_dirpath=output_path, inputs_dirpath="inputs",
-                     on_sums=False,
+                     on_sums=True,
                      on_performance=False,
-                     animate_raw_logs=True,
+                     animate_raw_logs=False,
                      target_properties=None
                      )
     

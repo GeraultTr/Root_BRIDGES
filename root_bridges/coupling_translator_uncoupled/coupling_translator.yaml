@@ -18,20 +18,12 @@ RootAnatomy:
 
 RootCarbonModel:
   RootAnatomy:
-    cortex_exchange_surface:
-      cortex_exchange_surface: 1.0
-    endodermis_conductance_factor:
-      endodermis_conductance_factor: 1.0
     phloem_exchange_surface:
       phloem_exchange_surface: 1.0
     root_exchange_surface:
       root_exchange_surface: 1.0
-    xylem_differentiation_factor:
-      xylem_differentiation_factor: 1.0
     symplasmic_volume:
       symplasmic_volume: 1.0
-    xylem_volume:
-      xylem_volume: 1.0
       
   RootCarbonModel: {}
   RootNitrogenModel: {}
@@ -80,8 +72,8 @@ RootCarbonModel:
 
 RootNitrogenModel:
   RootAnatomy:
-    cortex_exchange_surface:
-      cortex_exchange_surface: 1.0
+    xylem_exchange_surface:
+      xylem_exchange_surface: 1.0
     endodermis_conductance_factor:
       endodermis_conductance_factor: 1.0
     phloem_exchange_surface:
@@ -126,6 +118,8 @@ RootNitrogenModel:
   RootWaterModel:
     radial_import_water:
       radial_import_water: 1.0
+    radial_import_water_apoplastic:
+      radial_import_water_apoplastic: 1.0
     axial_export_water_up:
       axial_export_water_up: 1.0
     axial_import_water_down:
@@ -158,8 +152,6 @@ RootGrowthModel:
 
 RootWaterModel:
   RootAnatomy:
-    cortex_exchange_surface:
-      cortex_exchange_surface: 1.0
     xylem_vessel_radii:
       xylem_vessel_radii: 1.0
     xylem_volume:
@@ -216,9 +208,9 @@ SoilModel:
     amino_acids_diffusion_from_roots:
       diffusion_AA_soil: 12 * 6 # C molar mass * number of atoms 
     mineralN_diffusion_from_xylem:
-      diffusion_Nm_soil_xylem: 14 # N molar mass
+      apoplastic_Nm_soil_xylem: 14 # N molar mass
     amino_acids_diffusion_from_xylem:
-      diffusion_AA_soil_xylem: 12 * 6 # C molar mass * number of atoms 
+      apoplastic_AA_soil_xylem: 12 * 6 # C molar mass * number of atoms 
   RootGrowthModel:
     length:
       length: 1.0
