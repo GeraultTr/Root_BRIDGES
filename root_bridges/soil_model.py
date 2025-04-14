@@ -38,7 +38,7 @@ class SoilModel(RhizoInputsSoilModel):
                                                     variable_type="input", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     
     # FROM WATER MODEL
-    water_uptake: float =  declare(default=0., unit="mol.s-1", unit_comment="of water", 
+    water_uptake: float =  declare(default=0., unit="m3.s-1", unit_comment="of water", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
                                                     variable_type="input", by="model_water", state_variable_type="extensive", edit_by="user")
     

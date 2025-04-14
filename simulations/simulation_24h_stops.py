@@ -75,7 +75,7 @@ if __name__ == '__main__':
     # target_days = [ 5, 7, 10, 20, 30, 40, 50, 60]
     # target_days = np.arange(10, 61, 1)
     # target_days = [125]
-    target_days = [40]
+    target_days = [50]
 
     processes = []
     max_processes = mp.cpu_count()

@@ -14,7 +14,7 @@ if __name__ == '__main__':
     # target_days = [ 5, 7, 10, 20, 30, 40, 50, 60] #, 70, 80, 90, 100]
     # target_days = np.arange(10, 61, 1)
     # target_days = [10, 20, 30, 40, 50, 60]
-    target_days = [40]
+    target_days = [50]
     scenarios = [f"RC_ref_{day}D" for day in target_days]
     # scenarios = [f"RC_ref_high_{day}D" for day in target_days]
     # scenarios = [f"RC_ref_{day}D" + "_images" for day in target_days]
@@ -30,9 +30,9 @@ if __name__ == '__main__':
     # post_compress_gltf(os.path.join(output_path, scenarios[0], "root_images"))
 
     analyze_data(scenarios=scenarios, outputs_dirpath=output_path, inputs_dirpath="inputs",
-                     on_sums=True,
+                     on_sums=False,
                      on_performance=False,
-                     animate_raw_logs=False,
+                     animate_raw_logs=True,
                      target_properties=None
                      )
     
