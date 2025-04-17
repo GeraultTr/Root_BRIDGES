@@ -64,36 +64,52 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, custom_pref
 
 if __name__ == '__main__':
     # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["Rhizodep_ref"])
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref_0.1",	"RC_ref_0.01",	"RC_ref_0.05",	"RC_ref_0.5",	"RC_ref_5",	"RC_ref_50"])
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref"])
+    target_concentrations = np.logspace(0, 4, 61) * 5e-3
+    target_days = np.arange(10, 61, 1)
+
+    parallel = True
     # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref_low"])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref_high"])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_no_hair"])
-    scenario_name = list(scenarios.keys())[0]
-    scenario = list(scenarios.values())[0]
+    for scenario_name, scenario in scenarios.items():
 
-    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_debug"])
-    # target_days = [ 5, 7, 10, 20, 30, 40, 50, 60]
-    # target_days = np.arange(10, 61, 1)
-    # target_days = [125]
-    target_days = [50]
+        # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_debug"])
+        # target_days = [10, 20, 30, 40, 50, 60]
+        
+        # target_days = [125]
+        # target_days = [10, 20, 30]
+        static_days = 1
 
-    processes = []
-    max_processes = mp.cpu_count()
-    for day in target_days:
+        if parallel:
+            processes = []
+            max_processes = mp.cpu_count()
+            for day in target_days:
+                for concentration in target_concentrations:
+                    scenario["parameters"]["root_bridges"]["roots"]["dissolved_mineral_N"] = 5e-7 * concentration / 1e-1
+                    print("modified concentration to : ", scenario["parameters"]["root_bridges"]["roots"]["dissolved_mineral_N"])
+                    while len(processes) == max_processes:
+                        for proc in processes:
+                            if not proc.is_alive():
+                                processes.remove(proc)
+                        time.sleep(1)
 
-        while len(processes) == max_processes:
-            for proc in processes:
-                if not proc.is_alive():
-                    processes.remove(proc)
-            time.sleep(1)
+                    current_scenario_name = f"{str(scenario_name)}_{concentration:.2e}_{day}D"
 
-        current_scenario_name = f"{str(scenario_name)}_{day}D"
+                    p = mp.Process(target=single_run, kwargs=dict(scenario=scenario, 
+                                                                outputs_dirpath=os.path.join("outputs", current_scenario_name),
+                                                                target_day=day, simulation_length=(day + static_days) * 24,
+                                                                echo=True,
+                                                                log_settings=Logger.light_log))
+                    p.start()
+                    processes.append(p)
 
-        p = mp.Process(target=single_run, kwargs=dict(scenario=scenario, 
-                                                      outputs_dirpath=os.path.join("outputs", current_scenario_name),
-                                                      target_day=day, simulation_length=(day + 1) * 24,
-                                                      echo=True,
-                                                      log_settings=Logger.light_log))
-        p.start()
-        processes.append(p)
-2
+        else:
+            for day in target_days:
+                current_scenario_name = f"{str(scenario_name)}_{day}D"
+
+                single_run(scenario=scenario, outputs_dirpath=os.path.join("outputs", current_scenario_name),
+                                target_day=day, simulation_length=(day + static_days) * 24,
+                                echo=True,
+                                log_settings=Logger.light_log)    

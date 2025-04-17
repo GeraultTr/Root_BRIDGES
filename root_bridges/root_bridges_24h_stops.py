@@ -61,10 +61,13 @@ class Model(CompositeModel):
         self.soil = SoilModel(self.g, time_step, **parameters)
         self.soil_voxels = self.soil.voxels
 
-        self.root_water_initial_values = {state_var:getattr(self.root_water, state_var)[1] for state_var in self.root_water.state_variables if state_var not in ("K", "xylem_water")}
-        self.root_nitrogen_initial_values = {state_var:getattr(self.root_nitrogen, state_var)[1] for state_var in self.root_nitrogen.state_variables}
-        self.root_water_total_initial_values = {state_var:getattr(self.root_water, state_var)[1] for state_var in self.root_water.plant_scale_state}
-        self.root_nitrogen_total_initial_values = {state_var:getattr(self.root_nitrogen, state_var)[1] for state_var in self.root_nitrogen.plant_scale_state}
+        self.init_inertials = False
+
+        if self.init_inertials:
+            self.root_water_initial_values = {state_var:getattr(self.root_water, state_var)[1] for state_var in self.root_water.state_variables if state_var not in ("K", "xylem_water")}
+            self.root_nitrogen_initial_values = {state_var:getattr(self.root_nitrogen, state_var)[1] for state_var in self.root_nitrogen.state_variables}
+            self.root_water_total_initial_values = {state_var:getattr(self.root_water, state_var)[1] for state_var in self.root_water.plant_scale_state}
+            self.root_nitrogen_total_initial_values = {state_var:getattr(self.root_nitrogen, state_var)[1] for state_var in self.root_nitrogen.plant_scale_state}
 
         # LINKING MODULES
         self.declare_data_and_couple_components(root=self.g, soil=self.soil_voxels,
@@ -85,7 +88,7 @@ class Model(CompositeModel):
         if self.time <= self.reinitialize_step:
             self.apply_input_tables(tables=self.input_tables, to=self.components, when=self.time)
         
-        if self.time == self.reinitialize_step:
+        if self.time == self.reinitialize_step and self.init_inertials:
             print("Reinitializing Water and Nitrogen for the next 24h of interest")
             for prop, initial_value in self.root_water_initial_values.items():
                 getattr(self.root_water, prop).update({v: initial_value for v in self.root_water.vertices})
