@@ -62,12 +62,12 @@ if __name__ == '__main__':
         for day in target_days:
             for concentration in target_concentrations:
                 analyze_data(scenarios=[f"{str(scenario_name)}_{concentration:.2e}_{day}D"], outputs_dirpath=output_path, inputs_dirpath="inputs",
-                                on_sums=True,
+                                on_sums=False,
                                 on_performance=False,
                                 animate_raw_logs=True,
                                 target_properties=None
                                 )
         
         # In the end put the system to sleep, Windows only
-        #os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
+        # os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
     

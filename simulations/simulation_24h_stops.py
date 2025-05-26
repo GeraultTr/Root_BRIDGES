@@ -68,11 +68,11 @@ if __name__ == '__main__':
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref"])
     # target_days = np.arange(10, 61, 1)
     target_days = np.arange(10, 61, 10)
-    # target_days = [20]
+    target_days = [50]
     # target_concentrations = np.logspace(0, 4, len(target_days)) * 5e-3
     # target_concentrations = np.logspace(0, 4, 11) * 5e-3
     target_concentrations = np.logspace(0, 4, 5) * 5e-3
-    # target_concentrations = [5e-1]    
+    target_concentrations = [5e-1]    
     # target_smax = np.logspace(0, 4, 11) * 1e-9 # Barillot et al. 2016
     target_smax = [5e-6]
 
@@ -109,7 +109,7 @@ if __name__ == '__main__':
                         current_scenario_name = f"{str(scenario_name)}_{concentration:.2e}_{day}D"
 
                         p = mp.Process(target=single_run, kwargs=dict(scenario=scenario, 
-                                                                    outputs_dirpath=os.path.join("outputs", "batch_fig7.2", current_scenario_name),
+                                                                    outputs_dirpath=os.path.join("outputs", "batch_fig7", current_scenario_name),
                                                                     target_day=day, simulation_length=(day + static_days) * 24,
                                                                     echo=True,
                                                                     log_settings=Logger.light_log))
