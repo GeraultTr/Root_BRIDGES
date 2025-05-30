@@ -10,8 +10,10 @@ from metafspm.component import declare
 from rhizodep.soil_model import RhizoInputsSoilModel
 
 
+inheriting = (RhizoInputsSoilModel,)
+
 @dataclass
-class SoilModel(RhizoInputsSoilModel):
+class SoilModel(*inheriting):
     """
     Empty doc
     """

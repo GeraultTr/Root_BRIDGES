@@ -10,8 +10,10 @@ from numpy import pi, sqrt
 import numpy as np
 
 
+inheriting = (RootGrowthModel,)
+
 @dataclass
-class RootGrowthModelCoupled(RootGrowthModel):
+class RootGrowthModelCoupled(*inheriting):
     """
 
     NOTE : double names in methods are forbiden as they will be overwritten in Choregrapher's resolution

@@ -66,6 +66,7 @@ class RootCNUnified(*inheriting):
         self.initiate_heterogeneous_variables()
 
         self.previous_C_amount_in_the_root_system = self.compute_root_system_C_content()
+        # self.total_root_sucrose_and_living_struct_mass() # Needed otherwise first shoot unloading will be unrealistic
 
     # Note, here the decorator naming doesn't make much sense, but it was placed so that resolution of this flux is made after every other one.
     # Indeed, the expected behovior is to have rates computed from previous time step states. However, if we didn't waited for all import / export to compute,
@@ -144,8 +145,8 @@ class RootCNUnified(*inheriting):
                                                                 B=self.phloem_unloading_B,
                                                                 C=self.phloem_unloading_C)
             
-            return max(2. * max_unloading_rate * self.C_sucrose_phloem[1] * phloem_exchange_surface / (
-                    self.Km_unloading + self.C_sucrose_phloem[1]), 0)
+            return max(2. * max_unloading_rate * self.C_sucrose_root[1] * phloem_exchange_surface / (
+                    self.Km_unloading + self.C_sucrose_root[1]), 0)
         
     # Superimposing original
     @rate
@@ -164,6 +165,6 @@ class RootCNUnified(*inheriting):
                                                                     B=self.phloem_unloading_B,
                                                                     C=self.phloem_unloading_C)
 
-            return 2. * phloem_permeability * ((self.C_sucrose_phloem[1] * self.total_living_struct_mass[1] / self.total_phloem_volume[1]) 
+            return 2. * phloem_permeability * ((self.C_sucrose_root[1] * self.total_living_struct_mass[1] / self.total_phloem_volume[1]) 
                                                 - (C_hexose_root / 2.) * (living_struct_mass / symplasmic_volume)) * phloem_exchange_surface
         

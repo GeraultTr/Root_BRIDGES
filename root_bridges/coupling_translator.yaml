@@ -154,9 +154,9 @@ SoilModel:
     amino_acids_diffusion_from_roots:
       diffusion_AA_soil: 12 * 6 # C molar mass * number of atoms 
     mineralN_diffusion_from_xylem:
-      diffusion_Nm_soil_xylem: 14 # N molar mass
+      apoplastic_Nm_soil_xylem: 14 # N molar mass
     amino_acids_diffusion_from_xylem:
-      diffusion_AA_soil_xylem: 12 * 6 # C molar mass * number of atoms 
+      apoplastic_AA_soil_xylem: 12 * 6 # C molar mass * number of atoms 
   RootGrowthModelCoupled:
     struct_mass:
       struct_mass: 1.0

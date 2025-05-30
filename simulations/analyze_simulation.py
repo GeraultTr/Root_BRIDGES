@@ -54,10 +54,10 @@ if __name__ == '__main__':
 
         output_path = os.path.join("outputs", "batch_fig7.1")
         
-        target_days = np.arange(10, 61, 10)
-        # target_days = [50]
-        target_concentrations = np.logspace(0, 4, 5) * 5e-3
-        # target_concentrations = [5e-1]
+        # target_days = np.arange(10, 61, 10)
+        target_days = [50]
+        # target_concentrations = np.logspace(0, 4, 5) * 5e-3
+        target_concentrations = [5e-1]
         
         for day in target_days:
             for concentration in target_concentrations:
