@@ -120,16 +120,16 @@ class RootCNUnified(*inheriting):
         if balance < 0.:
             # If a deficit is to be recorded, we set the concentration to 0 and record the deficit
             deficit = - balance * living_struct_mass / self.time_step
-            self.deficit_hexose_root[vertex_index] = deficit if deficit > 1e-20 else 0.
+            self.props["deficit_hexose_root"][vertex_index] = deficit if deficit > 1e-20 else 0.
             return 0.
         else:
             # Otherwise there is no deficit and we directly return the balance
-            self.deficit_hexose_root[vertex_index] = 0.
+            self.props["deficit_hexose_root"][vertex_index] = 0.
             return balance
         
 
     @rate
-    def _hexose_active_production_from_phloem(self, length, phloem_exchange_surface,
+    def _hexose_active_production_from_phloem(self, length, C_sucrose_root, phloem_exchange_surface,
                                               hexose_consumption_by_growth, soil_temperature):
         # We consider all the cases where no net exchange should be allowed:
         if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
@@ -145,12 +145,12 @@ class RootCNUnified(*inheriting):
                                                                 B=self.phloem_unloading_B,
                                                                 C=self.phloem_unloading_C)
             
-            return max(2. * max_unloading_rate * self.C_sucrose_root[1] * phloem_exchange_surface / (
-                    self.Km_unloading + self.C_sucrose_root[1]), 0)
+            return max(2. * max_unloading_rate * self.props["C_sucrose_root"][1] * phloem_exchange_surface / (
+                    self.Km_unloading + self.props["C_sucrose_root"][1]), 0)
         
     # Superimposing original
     @rate
-    def _hexose_diffusion_from_phloem(self, length, phloem_exchange_surface, C_hexose_root,
+    def _hexose_diffusion_from_phloem(self, length, phloem_exchange_surface, C_sucrose_root, total_living_struct_mass, total_phloem_volume, C_hexose_root,
                                              hexose_consumption_by_growth, living_struct_mass, symplasmic_volume, soil_temperature):
         # We consider all the cases where no net exchange should be allowed:
         if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
@@ -165,6 +165,6 @@ class RootCNUnified(*inheriting):
                                                                     B=self.phloem_unloading_B,
                                                                     C=self.phloem_unloading_C)
 
-            return 2. * phloem_permeability * ((self.C_sucrose_root[1] * self.total_living_struct_mass[1] / self.total_phloem_volume[1]) 
+            return 2. * phloem_permeability * ((self.props["C_sucrose_root"][1] * self.props["total_living_struct_mass"][1] / self.props["total_phloem_volume"][1])
                                                 - (C_hexose_root / 2.) * (living_struct_mass / symplasmic_volume)) * phloem_exchange_surface
         
