@@ -12,6 +12,9 @@ import numpy as np
 
 inheriting = (RootGrowthModel,)
 
+# While echo has not been separated from model
+echo = False
+
 @dataclass
 class RootGrowthModelCoupled(*inheriting):
     """
@@ -123,14 +126,16 @@ class RootGrowthModelCoupled(*inheriting):
                 potential_elongation = self.EL * 2. * radius * elongation_time_in_seconds
                 elongation = potential_elongation * michaelis_menten_limitation
             else:
-                print(f"For element {element.index()}, no elongation, negative concentrations!! ", C_hexose_root, element.AA)
+                if echo:
+                    print(f"For element {element.index()}, no elongation, negative concentrations!! ", C_hexose_root, element.AA)
                 elongation = 0.
         
         # We calculate the new potential length corresponding to this elongation:
         new_length = initial_length + elongation
         if new_length < initial_length:
-            print("!!! ERROR: There is a problem of elongation, with the initial length", initial_length,
-                  " and the radius", radius, "and the elongation time", elongation_time_in_seconds)
+            if echo:
+                print("!!! ERROR: There is a problem of elongation, with the initial length", initial_length,
+                    " and the radius", radius, "and the elongation time", elongation_time_in_seconds)
         return new_length
 
     # Function for calculating the amount of C to be used in neighbouring elements for sustaining root elongation:
@@ -239,9 +244,10 @@ class RootGrowthModelCoupled(*inheriting):
         if n.struct_mass_contributing_to_elongation > 0.:
             n.growing_zone_C_hexose_root = n.hexose_possibly_required_for_elongation / n.struct_mass_contributing_to_elongation
         else:
-            print("!!! ERROR: the mass contributing to elongation in element", n.index(), "of type", n.type, "is",
-                  n.struct_mass_contributing_to_elongation,
-                  "g, and its structural mass is", n.struct_mass, "g!")
+            if echo:
+                print("!!! ERROR: the mass contributing to elongation in element", n.index(), "of type", n.type, "is",
+                    n.struct_mass_contributing_to_elongation,
+                    "g, and its structural mass is", n.struct_mass, "g!")
             n.growing_zone_C_hexose_root = 0.
 
         n.list_of_elongation_supporting_elements = list_of_elongation_supporting_elements
@@ -484,7 +490,8 @@ class RootGrowthModelCoupled(*inheriting):
             number_of_actual_children += 1
 
             if child.radius < 0. or child.potential_radius < 0.:
-                print("!!! ERROR: the radius of the element", child.index(), "is negative!")
+                if echo:
+                    print("!!! ERROR: the radius of the element", child.index(), "is negative!")
             # If the child belongs to the same axis:
             if child.edge_type == '<':
                 # Then we record the THEORETICAL section of this child:
@@ -662,13 +669,14 @@ class RootGrowthModelCoupled(*inheriting):
                                      * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth * 1 / 6.
             # We verify that this potential growth demand is positive:
             if n.hexose_growth_demand < 0.:
-                print("!!! ERROR: a negative growth demand of", n.hexose_growth_demand,
-                      "was calculated for the element", n.index(), "of class", n.label)
-                print("The initial volume is", initial_volume, "the potential volume is", potential_volume)
-                print("The initial length was", n.initial_length, "and the potential length was",
-                      n.potential_length)
-                print("The initial radius was", n.initial_radius, "and the potential radius was",
-                      n.potential_radius)
+                if echo:
+                    print("!!! ERROR: a negative growth demand of", n.hexose_growth_demand,
+                        "was calculated for the element", n.index(), "of class", n.label)
+                    print("The initial volume is", initial_volume, "the potential volume is", potential_volume)
+                    print("The initial length was", n.initial_length, "and the potential length was",
+                        n.potential_length)
+                    print("The initial radius was", n.initial_radius, "and the potential radius was",
+                        n.potential_radius)
                 n.hexose_growth_demand = 0.
                 # In such case, we just pass to the next element in the iteration:
                 continue
@@ -681,13 +689,14 @@ class RootGrowthModelCoupled(*inheriting):
                                                                 self.struct_mass_C_content / self.yield_growth / self.r_C_AA)
             # We verify that this potential growth demand is positive:
             if n.amino_acids_growth_demand < 0.:
-                print("!!! ERROR: a negative growth demand for amino acids of", n.amino_acids_growth_demand,
-                      "was calculated for the element", n.index(), "of class", n.label)
-                print("The initial volume is", initial_volume, "the potential volume is", potential_volume)
-                print("The initial length was", n.initial_length, "and the potential length was",
-                      n.potential_length)
-                print("The initial radius was", n.initial_radius, "and the potential radius was",
-                      n.potential_radius)
+                if echo:
+                    print("!!! ERROR: a negative growth demand for amino acids of", n.amino_acids_growth_demand,
+                        "was calculated for the element", n.index(), "of class", n.label)
+                    print("The initial volume is", initial_volume, "the potential volume is", potential_volume)
+                    print("The initial length was", n.initial_length, "and the potential length was",
+                        n.potential_length)
+                    print("The initial radius was", n.initial_radius, "and the potential radius was",
+                        n.potential_radius)
                 n.amino_acids_growth_demand = 0.
                 # In such case, we just pass to the next element in the iteration:
                 continue
@@ -834,10 +843,11 @@ class RootGrowthModelCoupled(*inheriting):
                     # Otherwise, we calculate the radius of a cylinder:
                     possible_radius = sqrt(volume_max / (n.length * pi))
                 if possible_radius < 0.9999 * n.initial_radius:  # We authorize a difference of 0.01% due to calculation errors!
-                    print("!!! ERROR: the calculated new radius of element", n.index(),
-                          "is lower than the initial one!")
-                    print("The possible radius was", possible_radius, "and the initial radius was",
-                          n.initial_radius)
+                    if echo:
+                        print("!!! ERROR: the calculated new radius of element", n.index(),
+                            "is lower than the initial one!")
+                        print("The possible radius was", possible_radius, "and the initial radius was",
+                            n.initial_radius)
 
                 # If the maximal radius that can be obtained is lower than the potential radius suggested by the potential growth module:
                 if possible_radius <= n.potential_radius:
@@ -918,13 +928,15 @@ class RootGrowthModelCoupled(*inheriting):
             n.struct_mass_produced = (n.volume - initial_volume) * n.root_tissue_density
 
             if n.struct_mass < n.initial_struct_mass and n.struct_mass_produced > 0.:
-                print(f"!!! ERROR during initialisation for initial struct mass, no concentrations will be updated on {n.index()}")
+                if echo:
+                    print(f"!!! ERROR during initialisation for initial struct mass, no concentrations will be updated on {n.index()}")
                 n.initial_struct_mass = n.struct_mass
 
             # Verification: we check that no negative length or struct_mass have been generated!
             if n.volume < 0:
-                print("!!! ERROR: the element", n.index(), "of class", n.label, "has a length of", n.length,
-                      "and a mass of", n.struct_mass)
+                if echo:
+                    print("!!! ERROR: the element", n.index(), "of class", n.label, "has a length of", n.length,
+                        "and a mass of", n.struct_mass)
                 # We then reset all the geometrical values to their initial values:
                 n.length = n.initial_length
                 n.radius = n.initial_radius

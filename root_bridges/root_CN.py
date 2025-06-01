@@ -129,7 +129,7 @@ class RootCNUnified(*inheriting):
         
 
     @rate
-    def _hexose_active_production_from_phloem(self, length, C_sucrose_root, phloem_exchange_surface,
+    def _hexose_active_production_from_phloem(self, length, phloem_exchange_surface,
                                               hexose_consumption_by_growth, soil_temperature):
         # We consider all the cases where no net exchange should be allowed:
         if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
@@ -150,7 +150,7 @@ class RootCNUnified(*inheriting):
         
     # Superimposing original
     @rate
-    def _hexose_diffusion_from_phloem(self, length, phloem_exchange_surface, C_sucrose_root, total_living_struct_mass, total_phloem_volume, C_hexose_root,
+    def _hexose_diffusion_from_phloem(self, length, phloem_exchange_surface, C_hexose_root,
                                              hexose_consumption_by_growth, living_struct_mass, symplasmic_volume, soil_temperature):
         # We consider all the cases where no net exchange should be allowed:
         if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
