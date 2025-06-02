@@ -327,19 +327,19 @@ class SoilModel(*inheriting):
                                        min_value="", max_value="", variable_type="parameter", by="model_soil", state_variable_type="", edit_by="user")
 
 
-    def __init__(self, time_step_in_seconds, soil_grid=None, scene_xrange=1., scene_yrange=1., **scenario):
+    def __init__(self, time_step_in_seconds, scene_xrange=1., scene_yrange=1., **scenario):
         """Pass to inherited init, necessary with data classes"""
-        super().__init__(time_step_in_seconds=time_step_in_seconds, soil_grid=soil_grid, scene_xrange=scene_xrange, scene_yrange=scene_yrange, **scenario)
+        super().__init__(time_step_in_seconds=time_step_in_seconds, scene_xrange=scene_xrange, scene_yrange=scene_yrange, **scenario)
 
 
     # SERVICE FUNCTIONS
 
     # Just ressource for now
-    def initiate_voxel_soil(self, soil_grid=None):
+    def initiate_voxel_soil(self, scene_xrange=1., scene_yrange=1.):
         """
         Note : not tested for now, just computed to support discussions.
         """
-        super().initiate_voxel_soil(soil_grid=soil_grid)
+        super().initiate_voxel_soil(scene_xrange=scene_xrange, scene_yrange=scene_yrange)
 
         # Set an heterogeneity uppon the mean background
         # Nitrogen
