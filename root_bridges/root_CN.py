@@ -148,23 +148,3 @@ class RootCNUnified(*inheriting):
             return max(2. * max_unloading_rate * self.props["C_sucrose_root"][1] * phloem_exchange_surface / (
                     self.Km_unloading + self.props["C_sucrose_root"][1]), 0)
         
-    # Superimposing original
-    @rate
-    def _hexose_diffusion_from_phloem(self, length, phloem_exchange_surface, C_hexose_root,
-                                             hexose_consumption_by_growth, living_struct_mass, symplasmic_volume, soil_temperature):
-        # We consider all the cases where no net exchange should be allowed:
-        if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
-            return 0
-
-        else:
-            phloem_permeability = self.phloem_permeability * (1 + hexose_consumption_by_growth /
-                                                                self.reference_rate_of_hexose_consumption_by_growth)
-            phloem_permeability *= self.temperature_modification(soil_temperature=soil_temperature,
-                                                                    T_ref=self.phloem_unloading_T_ref,
-                                                                    A=self.phloem_unloading_A,
-                                                                    B=self.phloem_unloading_B,
-                                                                    C=self.phloem_unloading_C)
-
-            return 2. * phloem_permeability * ((self.props["C_sucrose_root"][1] * self.props["total_living_struct_mass"][1] / self.props["total_phloem_volume"][1])
-                                                - (C_hexose_root / 2.) * (living_struct_mass / symplasmic_volume)) * phloem_exchange_surface
-        
