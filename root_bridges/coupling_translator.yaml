@@ -1,6 +1,9 @@
 RootAnatomy:
+
   RootAnatomy: {}
+
   RootCNUnified: {}
+
   RootGrowthModelCoupled:
     distance_from_tip:
       distance_from_tip: 1.0
@@ -12,7 +15,9 @@ RootAnatomy:
       root_hair_length: 1.0
     total_root_hairs_number:
       total_root_hairs_number: 1.0
+
   RootWaterModel: {}
+
   SoilModel: {}
 
 
@@ -182,6 +187,7 @@ SoilModel:
       apoplastic_Nm_soil_xylem: 14 # N molar mass
     amino_acids_diffusion_from_xylem:
       apoplastic_AA_soil_xylem: 12 * 6 # C molar mass * number of atoms 
+
   RootGrowthModelCoupled:
     length:
       length: 1.0
@@ -189,6 +195,9 @@ SoilModel:
       initial_length: 1.0
     struct_mass:
       struct_mass: 1.0
+    living_struct_mass:
+      living_struct_mass: 1.0
+
   RootWaterModel:
     water_uptake:
       radial_import_water: 1.0
