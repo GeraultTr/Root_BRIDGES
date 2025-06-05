@@ -13,7 +13,7 @@ import numpy as np
 inheriting = (RootGrowthModel,)
 
 # While echo has not been separated from model
-echo = False
+echo = True
 
 @dataclass
 class RootGrowthModelCoupled(*inheriting):
@@ -474,6 +474,10 @@ class RootGrowthModelCoupled(*inheriting):
         index_apex = self.g.Axis(segment.index())[-1]
         apex = self.g.node(index_apex)
         # print("For segment", segment.index(), "the terminal index is", index_apex, "and has the type", apex.label)
+        if apex.label != "Apex":
+            print("ERROR: when trying to access the terminal apex of the axis of the segment", segment.index(),
+                "we obtained the element", index_apex," that is a", apex.label, "!!!")
+            
         # Depending on the type of the apex, we adjust the type of the segment on the same axis:
         if apex.type == "Just_stopped":
             segment.type = "Just_stopped"
@@ -626,6 +630,8 @@ class RootGrowthModelCoupled(*inheriting):
 
         # PROCEEDING TO ACTUAL GROWTH:
         # -----------------------------
+
+        self.step_elongating_elements = []
 
         # We have to cover each vertex from the apices up to the base one time:
         root_gen = self.g.component_roots_at_scale_iter(self.g.root, scale=1)
@@ -789,6 +795,9 @@ class RootGrowthModelCoupled(*inheriting):
                 # Here we substract the amount of C brought by amino acids to the amount of consummed hexose
                 hexose_consumption_by_elongation = (1. / 6. * (volume_after_elongation - initial_volume) \
                     * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth) - amino_acids_consumption_by_elongation * self.r_C_AA / 6
+
+                # Finally we store this elongation information to expose it to other modules
+                self.step_elongating_elements.append(n.index())
 
                 # If there has been an actual elongation:
                 if n.length > n.initial_length:

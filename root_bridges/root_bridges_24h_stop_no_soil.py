@@ -101,7 +101,7 @@ class RootBRIDGES(CompositeModel):
         self.root_props["model_name"] = self.__class__.__name__
         self.root_props["carried_components"] = [component.__class__.__name__ for component in self.components]
         self.queue_plants_to_soil.put({"plant_id": self.name, "data": self.root_props})
-
+        
         # Retreive post environments init states
         self.get_environment_boundaries()
 
@@ -110,8 +110,6 @@ class RootBRIDGES(CompositeModel):
 
 
     def run(self):
-
-        
 
         if self.time <= self.reinitialize_step:
             self.apply_input_tables(tables=self.input_tables, to=self.components, when=self.time)
@@ -133,7 +131,7 @@ class RootBRIDGES(CompositeModel):
             self.get_environment_boundaries()
             
             # Compute root growth from resulting states
-            self.root_growth(modules_to_update=[c for c in self.components if c.__class__.__name__ != "RootGrowthModelCoupled"],
+            self.root_growth(modules_to_update=[c for c in self.components if c.__class__.__name__ != "RootGrowthModel"],
                             soil_boundaries_to_infer=self.soil_outputs)
             
             # Update MTG coordinates accounting for position in the scene

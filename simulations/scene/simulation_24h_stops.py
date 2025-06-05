@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     # target_days = np.arange(10, 61, 1)
     target_days = np.arange(10, 61, 10)
-    target_days = [10, 20]
+    target_days = [50]
     # target_concentrations = np.logspace(0, 4, len(target_days)) * 5e-3
     # target_concentrations = np.logspace(0, 4, 11) * 5e-3
     target_concentrations = np.logspace(0, 4, 5) * 5e-3
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     # target_smax = np.logspace(0, 4, 11) * 1e-9 # Barillot et al. 2016
     target_smax = [5e-6]
 
-    parallel = True
+    parallel = False
 
     for scenario_name, scenario in scenarios.items():
 
