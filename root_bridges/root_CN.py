@@ -23,10 +23,13 @@ class RootCNUnified(*inheriting):
 
     N_metabolic_respiration: float = declare(default=0., unit="mol.s-1", unit_comment="of carbon", description="Respiration related to nitrogen metabolism", 
                                             min_value="", max_value="", value_comment="", references="", DOI="",
-                                             variable_type="state_variable", by="model_carbon", state_variable_type="NonInertialExtensive", edit_by="user")
+                                             variable_type="state_variable", by="model_cn", state_variable_type="NonInertialExtensive", edit_by="user")
+    nitrate_transporters_affinity_factor: float = declare(default=1., unit="mol.s-1", unit_comment="of nitrates", description="nitrate_transporters_affinity_factor, introduced to account for NRT1 signalling function when going through LATS regime", 
+                                                    min_value="", max_value="", value_comment="", references="Remans et al 2006", DOI="", 
+                                                    variable_type="state_variable", by="model_cn", state_variable_type="NonInertialIntensive", edit_by="user")
     total_hexose_diffusion_from_phloem: float = declare(default=0., unit="umol of C.g-1 mstruc.h-1", unit_comment="", description="Property computed to compare with shoot model unloading",
                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                    variable_type="plant_scale_state", by="model_carbon", state_variable_type="", edit_by="user")
+                                    variable_type="plant_scale_state", by="model_cn", state_variable_type="", edit_by="user")
     
     # PARAMETERS
     r_hexose_AA: float = declare(default=4.5/6, unit="adim", unit_comment="mol of hexose per mol of amino acids in roots", description="stoechiometric ratio during amino acids synthesis for hexose consumption", 
@@ -127,6 +130,65 @@ class RootCNUnified(*inheriting):
             # Otherwise there is no deficit and we directly return the balance
             self.props["deficit_hexose_root"][vertex_index] = 0.
             return balance
+        
+    @state
+    def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+                  amino_acids_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
+        
+        if living_struct_mass > 0:
+            balance =  AA + (self.time_step / living_struct_mass) * (
+                    diffusion_AA_phloem
+                    + unloading_AA_phloem
+                    + import_AA
+                    - diffusion_AA_soil
+                    - export_AA
+                    + AA_synthesis
+                    - amino_acids_consumption_by_growth
+                    - storage_synthesis * self.r_AA_stor
+                    + storage_catabolism / self.r_AA_stor
+                    - AA_catabolism
+                    - deficit_AA)
+            if balance < 0.:
+                deficit = - balance * (living_struct_mass) / self.time_step
+                self.props["deficit_AA"][vertex_index] = deficit if deficit > 1e-20 else 0.
+                return 0.
+            else:
+                self.props["deficit_AA"][vertex_index] = 0.
+                return balance
+
+        else:
+            return 0
+        
+
+    @rate
+    def _nitrate_transporters_affinity_factor(self, Nm):
+        return 1
+    
+
+    @rate
+    def _diffusion_AA_phloem(self, amino_acids_consumption_by_growth, AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume):
+        """ Passive radial diffusion between phloem and cortex through plasmodesmata """
+        diffusion_phloem = self.diffusion_phloem * (1 + amino_acids_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
+        diffusion_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.passive_processes_T_ref,
+                                                                     A=self.passive_processes_A,
+                                                                     B=self.passive_processes_B,
+                                                                     C=self.passive_processes_C)
+
+        return diffusion_phloem * (self.props["C_phloem_AA"][1] - AA * living_struct_mass / symplasmic_volume) * phloem_exchange_surface
+
+
+    @rate
+    def _unloading_AA_phloem(self, amino_acids_consumption_by_growth, phloem_exchange_surface, soil_temperature):
+        vmax_unloading_AA_phloem = self.vmax_unloading_AA_phloem * (1 + amino_acids_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
+        vmax_unloading_AA_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                            T_ref=self.active_processes_T_ref,
+                                                            A=self.active_processes_A,
+                                                            B=self.active_processes_B,
+                                                            C=self.active_processes_C)
+        
+        return max(vmax_unloading_AA_phloem * self.props["C_phloem_AA"][1] * phloem_exchange_surface / (
+                    self.km_unloading_AA_phloem + self.props["C_phloem_AA"][1]), 0)
         
 
     # @rate

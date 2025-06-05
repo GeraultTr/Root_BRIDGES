@@ -89,8 +89,6 @@ RootNitrogenModel:
     total_phloem_volume:
       total_phloem_volume: 1.0
   RootGrowthModel:
-    initial_struct_mass:
-      initial_struct_mass: 1.0
     type:
       type: 1.0
     length:
@@ -99,10 +97,6 @@ RootNitrogenModel:
       radius: 1.0
     living_struct_mass:
       living_struct_mass: 1.0
-    struct_mass_produced:
-      struct_mass_produced: 1.0
-    root_hairs_struct_mass_produced:
-      root_hairs_struct_mass_produced: 1.0
     hexose_consumption_by_growth:
       hexose_consumption_by_growth: 1.0
     thermal_time_since_emergence:
@@ -211,6 +205,7 @@ SoilModel:
       apoplastic_Nm_soil_xylem: 14 # N molar mass
     amino_acids_diffusion_from_xylem:
       apoplastic_AA_soil_xylem: 12 * 6 # C molar mass * number of atoms 
+      
   RootGrowthModel:
     length:
       length: 1.0

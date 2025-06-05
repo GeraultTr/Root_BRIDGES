@@ -1,8 +1,3 @@
-import root_bridges
-
-# Public packages
-import os
-
 # Untouched models
 from rhizodep.root_carbon import RootCarbonModel
 from root_cynaps.root_nitrogen import RootNitrogenModel
@@ -148,9 +143,8 @@ class RootBRIDGES(CompositeModel):
 
         self.root_nitrogen()
 
-        if self.time < self.reinitialize_step:
-            # Send plant status to soil and light models
-            self.send_plant_status_to_environment()
+        # Send plant status to soil and light models
+        self.send_plant_status_to_environment()
 
         self.time += 1
 

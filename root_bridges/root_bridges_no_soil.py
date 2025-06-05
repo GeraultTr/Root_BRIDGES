@@ -1,5 +1,3 @@
-import root_bridges
-
 # Edited models
 from root_bridges.root_CN import RootCNUnified
 from root_bridges.root_growth import RootGrowthModelCoupled

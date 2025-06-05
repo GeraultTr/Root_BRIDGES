@@ -13,7 +13,7 @@ import numpy as np
 inheriting = (RootGrowthModel,)
 
 # While echo has not been separated from model
-echo = True
+debug = False
 
 @dataclass
 class RootGrowthModelCoupled(*inheriting):
@@ -107,7 +107,7 @@ class RootGrowthModelCoupled(*inheriting):
         It has been modified in Root-BRIDGES to introduce a regulation by 
         :param initial_length: the initial length (m)
         :param radius: radius (m)
-        :param C_hexose_root: the concentration of hexose available for elongation (mol of hexose per gram of strctural mass)
+        :param C_hexose_root: the concentration of hexose available for elongation (mol of hexose per gram of structural mass)
         :param elongation_time_in_seconds: the period of elongation (s)
         :return: the new elongated length
         """
@@ -119,23 +119,21 @@ class RootGrowthModelCoupled(*inheriting):
         else:
             # Otherwise, we additionally consider a limitation of the elongation according to the local concentration of hexose,
             # based on a Michaelis-Menten formalism:
-            if C_hexose_root > self.C_hexose_min_for_elongation and element.AA > 0:
+            if C_hexose_root > self.C_hexose_min_for_elongation or element.AA > 0:
                 # michaelis_menten_limitation = ((1 + self.Km_elongation) / C_hexose_root) * ((1 + self.Km_elongation_amino_acids) / element.AA)
                 michaelis_menten_limitation = ((C_hexose_root / (C_hexose_root + self.Km_elongation)) + (element.AA / (element.AA + self.Km_elongation_amino_acids))) / 2
-                #print("MM", michaelis_menten_limitation)
+                if debug: print("MM", michaelis_menten_limitation)
                 potential_elongation = self.EL * 2. * radius * elongation_time_in_seconds
                 elongation = potential_elongation * michaelis_menten_limitation
             else:
-                if echo:
-                    print(f"For element {element.index()}, no elongation, negative concentrations!! ", C_hexose_root, element.AA)
+                print(f"For element {element.index()}, no elongation, negative concentrations!! ", C_hexose_root, element.AA, element.struct_mass)
                 elongation = 0.
         
         # We calculate the new potential length corresponding to this elongation:
         new_length = initial_length + elongation
         if new_length < initial_length:
-            if echo:
-                print("!!! ERROR: There is a problem of elongation, with the initial length", initial_length,
-                    " and the radius", radius, "and the elongation time", elongation_time_in_seconds)
+            print("!!! ERROR: There is a problem of elongation, with the initial length", initial_length,
+                " and the radius", radius, "and the elongation time", elongation_time_in_seconds)
         return new_length
 
     # Function for calculating the amount of C to be used in neighbouring elements for sustaining root elongation:
@@ -244,10 +242,9 @@ class RootGrowthModelCoupled(*inheriting):
         if n.struct_mass_contributing_to_elongation > 0.:
             n.growing_zone_C_hexose_root = n.hexose_possibly_required_for_elongation / n.struct_mass_contributing_to_elongation
         else:
-            if echo:
-                print("!!! ERROR: the mass contributing to elongation in element", n.index(), "of type", n.type, "is",
-                    n.struct_mass_contributing_to_elongation,
-                    "g, and its structural mass is", n.struct_mass, "g!")
+            print("!!! ERROR: the mass contributing to elongation in element", n.index(), "of type", n.type, "is",
+                n.struct_mass_contributing_to_elongation,
+                "g, and its structural mass is", n.struct_mass, "g!")
             n.growing_zone_C_hexose_root = 0.
 
         n.list_of_elongation_supporting_elements = list_of_elongation_supporting_elements
@@ -355,14 +352,14 @@ class RootGrowthModelCoupled(*inheriting):
                                         radius=potential_radius,
                                         identical_properties=False,
                                         nil_properties=True)
-            if apex.nitrate_transporters_affinity_factor:
-                lateral_elongation_possibility = max(apex.nitrate_transporters_affinity_factor * self.main_roots_growth_extender, 1)
+            if apex.nitrate_transporters_affinity_factor is not None:
+                lateral_elongation_possibility = max(apex.nitrate_transporters_affinity_factor, 1)
             else:
                 lateral_elongation_possibility = 1
 
             # We specifically recomputes the growth duration:
             if self.simple_growth_duration:
-                ramif.growth_duration = self.GDs * (2. * ramif.radius) ** 2 * lateral_elongation_possibility
+                ramif.growth_duration = self.GDs * (2. * ramif.radius) ** 2 * lateral_elongation_possibility * self.main_roots_growth_extender
             else:
                 ramif.growth_duration = self.calculate_growth_duration(radius=ramif.radius, index=ramif.index(),
                                                                        root_order=ramif.root_order)
@@ -494,8 +491,7 @@ class RootGrowthModelCoupled(*inheriting):
             number_of_actual_children += 1
 
             if child.radius < 0. or child.potential_radius < 0.:
-                if echo:
-                    print("!!! ERROR: the radius of the element", child.index(), "is negative!")
+                print("!!! ERROR: the radius of the element", child.index(), "is negative!")
             # If the child belongs to the same axis:
             if child.edge_type == '<':
                 # Then we record the THEORETICAL section of this child:
@@ -671,38 +667,44 @@ class RootGrowthModelCoupled(*inheriting):
             # We calculate the number of moles of hexose required for growth, including the respiration cost according to
             # the yield growth included in the model of Thornley and Cannell (2000), where root_tissue_density is the dry structural
             # weight per volume (g m-3) and struct_mass_C_content is the amount of C per gram of dry structural mass (mol_C g-1):
-            n.hexose_growth_demand = (potential_volume - initial_volume) \
-                                     * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth * 1 / 6.
+
+            # EDIT : We also account for the ratio between the two C sources, hexose and amino acids to compute the demand
+            if n.C_hexose_root > 0 or n.AA > 0:
+                hexose_C_in_total = n.C_hexose_root * 6 / (n.C_hexose_root * 6 + n.AA * self.r_C_AA)
+            else:
+                hexose_C_in_total = 0.5
+
+            C_growth_demand = (potential_volume - initial_volume) * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth
+
+            n.hexose_growth_demand = C_growth_demand * hexose_C_in_total / 6.
             # We verify that this potential growth demand is positive:
             if n.hexose_growth_demand < 0.:
-                if echo:
-                    print("!!! ERROR: a negative growth demand of", n.hexose_growth_demand,
-                        "was calculated for the element", n.index(), "of class", n.label)
-                    print("The initial volume is", initial_volume, "the potential volume is", potential_volume)
-                    print("The initial length was", n.initial_length, "and the potential length was",
-                        n.potential_length)
-                    print("The initial radius was", n.initial_radius, "and the potential radius was",
-                        n.potential_radius)
+                print("!!! ERROR: a negative growth demand of", n.hexose_growth_demand,
+                    "was calculated for the element", n.index(), "of class", n.label)
+                print("The initial volume is", initial_volume, "the potential volume is", potential_volume)
+                print("The initial length was", n.initial_length, "and the potential length was",
+                    n.potential_length)
+                print("The initial radius was", n.initial_radius, "and the potential radius was",
+                    n.potential_radius)
                 n.hexose_growth_demand = 0.
                 # In such case, we just pass to the next element in the iteration:
                 continue
             elif n.hexose_growth_demand == 0.:
                 continue
+            
+            amino_acids_growth_demand_C = C_growth_demand * (1 - hexose_C_in_total) / self.r_C_AA
+            amino_acids_growth_demand_N = (potential_volume - initial_volume) * n.root_tissue_density * self.struct_mass_N_content / self.yield_growth_N / self.r_Nm_AA
+            n.amino_acids_growth_demand = max(amino_acids_growth_demand_C, amino_acids_growth_demand_N)
 
-            n.amino_acids_growth_demand = (potential_volume - initial_volume) \
-                                     * n.root_tissue_density * max(self.struct_mass_N_content / self.yield_growth_N / self.r_Nm_AA,
-                                                                # We also increase the demand as amino acids also bring C!
-                                                                self.struct_mass_C_content / self.yield_growth / self.r_C_AA)
             # We verify that this potential growth demand is positive:
             if n.amino_acids_growth_demand < 0.:
-                if echo:
-                    print("!!! ERROR: a negative growth demand for amino acids of", n.amino_acids_growth_demand,
-                        "was calculated for the element", n.index(), "of class", n.label)
-                    print("The initial volume is", initial_volume, "the potential volume is", potential_volume)
-                    print("The initial length was", n.initial_length, "and the potential length was",
-                        n.potential_length)
-                    print("The initial radius was", n.initial_radius, "and the potential radius was",
-                        n.potential_radius)
+                print("!!! ERROR: a negative growth demand for amino acids of", n.amino_acids_growth_demand,
+                    "was calculated for the element", n.index(), "of class", n.label)
+                print("The initial volume is", initial_volume, "the potential volume is", potential_volume)
+                print("The initial length was", n.initial_length, "and the potential length was",
+                    n.potential_length)
+                print("The initial radius was", n.initial_radius, "and the potential radius was",
+                    n.potential_radius)
                 n.amino_acids_growth_demand = 0.
                 # In such case, we just pass to the next element in the iteration:
                 continue
@@ -748,8 +750,8 @@ class RootGrowthModelCoupled(*inheriting):
 
                 amino_acids_available_for_thickening = n.amino_acids_available_for_thickening
 
-            # In case no hexose is available at all:
-            if (hexose_available_for_elongation  + hexose_available_for_thickening) <= 0. or (
+            # In case no hexose and amino acids are available at all:
+            if (hexose_available_for_elongation  + hexose_available_for_thickening) <= 0. and (
                 amino_acids_possibly_required_for_elongation + amino_acids_available_for_thickening) <= 0. :
                 # Then we move to the next element in the main loop:
                 continue
@@ -772,6 +774,11 @@ class RootGrowthModelCoupled(*inheriting):
             volume_max_N = initial_volume + amino_acids_possibly_required_for_elongation * self.r_Nm_AA \
                          / (n.root_tissue_density * self.struct_mass_N_content) * self.yield_growth_N
             # We account for the minimal volume defining the most limiting factor between C and N
+            if debug:
+                if volume_max_C > volume_max_N:
+                    print("N is limiting volume")
+                else:
+                    print("C is limiting volume")
             length_max = min(volume_max_C, volume_max_N) / (pi * n.initial_radius ** 2)
 
             # If the element can elongate:
@@ -788,15 +795,25 @@ class RootGrowthModelCoupled(*inheriting):
                 # The corresponding new volume is calculated:
                 volume_after_elongation = self.volume_from_radius_and_length(n, n.initial_radius, n.length)
 
-                # The overall cost of elongation is calculated as:
-                amino_acids_consumption_by_elongation = (1. / self.r_Nm_AA) * (volume_after_elongation - initial_volume) \
-                    * n.root_tissue_density * self.struct_mass_N_content / self.yield_growth_N
+                # We suppose that carbon is taken equally from hexose and amino acids since we supperimpose many metabolic processes here
+                hexose_consumption_ratio_in_C = 6 * (hexose_available_for_elongation) / (self.r_C_AA * amino_acids_possibly_required_for_elongation  
+                                                                                        + 6 * hexose_available_for_elongation )
+                
+                C_consumption_by_elongation = (volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth
+                N_consumption_by_elongation = (volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_N_content / self.yield_growth_N
 
-                # Here we substract the amount of C brought by amino acids to the amount of consummed hexose
-                hexose_consumption_by_elongation = (1. / 6. * (volume_after_elongation - initial_volume) \
-                    * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth) - amino_acids_consumption_by_elongation * self.r_C_AA / 6
+                # If fixating more C than requiered to only sustain N
+                if C_consumption_by_elongation * (1 - hexose_consumption_ratio_in_C) > N_consumption_by_elongation * (self.r_C_AA / self.r_Nm_AA):
+                    if debug: print("BONUS UP CONSUMPTION OF AMINO ACIDS", (1-hexose_consumption_ratio_in_C))
+                    amino_acids_consumption_by_elongation = C_consumption_by_elongation * (1 - hexose_consumption_ratio_in_C) / self.r_C_AA
+                    hexose_consumption_by_elongation = C_consumption_by_elongation * hexose_consumption_ratio_in_C / 6
+                # Else we condition by sustaining minimal N costs
+                else:
+                    if debug: print("HIGHER CONSUMPTION OF AMINO ACIDS TO SUSTAIN C:N RATIO", (1-hexose_consumption_ratio_in_C))
+                    amino_acids_consumption_by_elongation = N_consumption_by_elongation / self.r_Nm_AA
+                    hexose_consumption_by_elongation = (C_consumption_by_elongation - amino_acids_consumption_by_elongation * self.r_C_AA) / 6
 
-                # Finally we store this elongation information to expose it to other modules
+                # We store this elongation information to expose it to other modules
                 self.step_elongating_elements.append(n.index())
 
                 # If there has been an actual elongation:
@@ -852,11 +869,10 @@ class RootGrowthModelCoupled(*inheriting):
                     # Otherwise, we calculate the radius of a cylinder:
                     possible_radius = sqrt(volume_max / (n.length * pi))
                 if possible_radius < 0.9999 * n.initial_radius:  # We authorize a difference of 0.01% due to calculation errors!
-                    if echo:
-                        print("!!! ERROR: the calculated new radius of element", n.index(),
-                            "is lower than the initial one!")
-                        print("The possible radius was", possible_radius, "and the initial radius was",
-                            n.initial_radius)
+                    print("!!! ERROR: the calculated new radius of element", n.index(),
+                        "is lower than the initial one!")
+                    print("The possible radius was", possible_radius, "and the initial radius was",
+                        n.initial_radius)
 
                 # If the maximal radius that can be obtained is lower than the potential radius suggested by the potential growth module:
                 if possible_radius <= n.potential_radius:
@@ -874,14 +890,21 @@ class RootGrowthModelCoupled(*inheriting):
                     # net_increase_in_volume = pi * (n.radius ** 2 - n.initial_radius ** 2) * n.length
                     # We then calculate the remaining amount of hexose after thickening:
 
-                    amino_acids_actual_contribution_to_thickening = \
-                        1. / self.r_Nm_AA * net_increase_in_volume \
-                        * n.root_tissue_density * self.struct_mass_N_content / self.yield_growth_N
-
-                    hexose_actual_contribution_to_thickening = \
-                        1. / 6. * net_increase_in_volume \
-                        * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth - amino_acids_actual_contribution_to_thickening * self.r_C_AA / 6
+                    # We suppose that carbon is taken equally from hexose and amino acids since we supperimpose many metabolic processes here
+                    hexose_radial_consumption_ratio_in_C = 6 * (hexose_available_for_thickening) / (self.r_C_AA * amino_acids_available_for_thickening  
+                                                                                            + 6 * hexose_available_for_thickening )
                     
+                    C_consumption_by_thickening = net_increase_in_volume * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth
+                    N_consumption_by_thickening = net_increase_in_volume * n.root_tissue_density * self.struct_mass_N_content / self.yield_growth_N
+
+                    # If fixating more C than requiered to only sustain N
+                    if C_consumption_by_thickening * (1 - hexose_radial_consumption_ratio_in_C) > N_consumption_by_thickening * (self.r_C_AA / self.r_Nm_AA):
+                        amino_acids_actual_contribution_to_thickening = C_consumption_by_thickening * (1 - hexose_radial_consumption_ratio_in_C) / self.r_C_AA
+                        hexose_actual_contribution_to_thickening = C_consumption_by_thickening * hexose_radial_consumption_ratio_in_C / 6
+                    # Else we condition by sustaining minimal N costs
+                    else:
+                        amino_acids_actual_contribution_to_thickening = N_consumption_by_thickening / self.r_Nm_AA
+                        hexose_actual_contribution_to_thickening = (C_consumption_by_thickening - amino_acids_actual_contribution_to_thickening * self.r_C_AA) / 6
 
                 # REGISTERING THE COSTS FOR THICKENING:
                 # --------------------------------------
@@ -937,15 +960,13 @@ class RootGrowthModelCoupled(*inheriting):
             n.struct_mass_produced = (n.volume - initial_volume) * n.root_tissue_density
 
             if n.struct_mass < n.initial_struct_mass and n.struct_mass_produced > 0.:
-                if echo:
-                    print(f"!!! ERROR during initialisation for initial struct mass, no concentrations will be updated on {n.index()}")
+                print(f"!!! ERROR during initialisation for initial struct mass, no concentrations will be updated on {n.index()}")
                 n.initial_struct_mass = n.struct_mass
 
             # Verification: we check that no negative length or struct_mass have been generated!
             if n.volume < 0:
-                if echo:
-                    print("!!! ERROR: the element", n.index(), "of class", n.label, "has a length of", n.length,
-                        "and a mass of", n.struct_mass)
+                print("!!! ERROR: the element", n.index(), "of class", n.label, "has a length of", n.length,
+                    "and a mass of", n.struct_mass)
                 # We then reset all the geometrical values to their initial values:
                 n.length = n.initial_length
                 n.radius = n.initial_radius
