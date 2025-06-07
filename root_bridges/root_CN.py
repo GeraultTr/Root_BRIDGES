@@ -166,16 +166,17 @@ class RootCNUnified(*inheriting):
     
 
     @rate
-    def _diffusion_AA_phloem(self, amino_acids_consumption_by_growth, AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume):
+    def _diffusion_AA_phloem(self, amino_acids_consumption_by_growth, AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, deficit_AA):
         """ Passive radial diffusion between phloem and cortex through plasmodesmata """
         diffusion_phloem = self.diffusion_phloem * (1 + amino_acids_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
-        diffusion_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
-                                                                     T_ref=self.passive_processes_T_ref,
-                                                                     A=self.passive_processes_A,
-                                                                     B=self.passive_processes_B,
-                                                                     C=self.passive_processes_C)
 
-        return diffusion_phloem * (self.props["C_phloem_AA"][1] - AA * living_struct_mass / symplasmic_volume) * phloem_exchange_surface
+        diffusion_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                                    T_ref=self.passive_processes_T_ref,
+                                                                    A=self.passive_processes_A,
+                                                                    B=self.passive_processes_B,
+                                                                    C=self.passive_processes_C)
+
+        return diffusion_phloem * (max(0, self.props["C_phloem_AA"][1]) - max(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
 
 
     @rate

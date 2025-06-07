@@ -63,13 +63,6 @@ class RootBRIDGES(CompositeModel):
                                                 translator_path=translator_path,
                                                 components=(self.root_growth, self.root_anatomy, self.root_water, self.root_carbon, self.root_nitrogen))
         
-        self.init_inertials = False
-
-        if self.init_inertials:
-            self.root_water_initial_values = {state_var:getattr(self.root_water, state_var)[1] for state_var in self.root_water.state_variables if state_var not in ("K", "xylem_water")}
-            self.root_nitrogen_initial_values = {state_var:getattr(self.root_nitrogen, state_var)[1] for state_var in self.root_nitrogen.state_variables}
-            self.root_water_total_initial_values = {state_var:getattr(self.root_water, state_var)[1] for state_var in self.root_water.plant_scale_state}
-            self.root_nitrogen_total_initial_values = {state_var:getattr(self.root_nitrogen, state_var)[1] for state_var in self.root_nitrogen.plant_scale_state}
         
         # Specific here TODO remove later
         self.root_water.collar_children = self.root_growth.collar_children
@@ -86,6 +79,15 @@ class RootBRIDGES(CompositeModel):
 
         # Get properties from each MTG
         self.root_props = self.g_root.properties()
+
+        self.init_inertials = False
+
+        if self.init_inertials:
+            self.root_water_initial_values = {state_var:self.root_props[state_var][1] for state_var in self.root_water.state_variables if state_var not in ("K", "xylem_water")}
+            self.root_nitrogen_initial_values = {state_var:self.root_props[state_var][1] for state_var in self.root_nitrogen.state_variables}
+            self.root_water_total_initial_values = {state_var:self.root_props[state_var][1] for state_var in self.root_water.plant_scale_state}
+            self.root_nitrogen_total_initial_values = {state_var:self.root_props[state_var][1] for state_var in self.root_nitrogen.plant_scale_state}
+        
         
         # Performed in initialization and run to update coordinates
         plot_mtg(self.g_root, position=self.coordinates, rotation=self.rotation)
