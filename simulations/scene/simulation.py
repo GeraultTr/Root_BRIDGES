@@ -6,7 +6,7 @@ from root_bridges.root_bridges_no_soil import RootBRIDGES
 # Utility packages
 from initialize.initialize import MakeScenarios as ms
 from log.logging import Logger
-from metafspm.scene_wrapper import play_Orchestra
+from openalea.metafspm.scene_wrapper import play_Orchestra
 
 
 if __name__ == "__main__":

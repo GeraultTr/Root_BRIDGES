@@ -7,8 +7,8 @@ from rhizodep.root_anatomy import RootAnatomy
 from root_cynaps.root_water import RootWaterModel
 
 # Utilities
-from metafspm.composite_wrapper import CompositeModel
-from metafspm.component_factory import Choregrapher
+from openalea.metafspm.composite_wrapper import CompositeModel
+from openalea.metafspm.component_factory import Choregrapher
 from log.visualize import plot_mtg
 
 

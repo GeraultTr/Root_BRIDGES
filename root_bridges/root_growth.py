@@ -1,8 +1,8 @@
 from rhizodep.root_growth import RootGrowthModel
 
 from dataclasses import dataclass
-from metafspm.component_factory import *
-from metafspm.component import declare
+from openalea.metafspm.component_factory import *
+from openalea.metafspm.component import declare
 
 from openalea.mtg import *
 from openalea.mtg.traversal import post_order
@@ -798,6 +798,7 @@ class RootGrowthModelCoupled(*inheriting):
                 # We suppose that carbon is taken equally from hexose and amino acids since we supperimpose many metabolic processes here
                 hexose_consumption_ratio_in_C = 6 * (hexose_available_for_elongation) / (self.r_C_AA * amino_acids_possibly_required_for_elongation  
                                                                                         + 6 * hexose_available_for_elongation )
+                hexose_consumption_ratio_in_C = 0.5
                 
                 C_consumption_by_elongation = (volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth
                 N_consumption_by_elongation = (volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_N_content / self.yield_growth_N

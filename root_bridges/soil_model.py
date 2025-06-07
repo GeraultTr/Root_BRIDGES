@@ -3,8 +3,8 @@ import numpy as np
 from dataclasses import dataclass
 
 # Utility packages
-from metafspm.component_factory import *
-from metafspm.component import declare
+from openalea.metafspm.component_factory import *
+from openalea.metafspm.component import declare
 
 # Model packages
 from rhizodep.soil_model import RhizoInputsSoilModel
