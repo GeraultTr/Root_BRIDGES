@@ -650,7 +650,7 @@ class SoilModel(*inheriting):
                 + degradation_DOC * (1 - self.CUE_DOC)
             )
     
-    #TP@state
+    @state
     def _dissolved_mineral_N(self, dissolved_mineral_N, dry_soil_mass, mineral_N_net_mineralization, 
                              mineralN_diffusion_from_roots, mineralN_diffusion_from_xylem, mineralN_uptake, mineral_N_fertilization, mineral_N_transport):
         return dissolved_mineral_N + (self.time_step_in_seconds / dry_soil_mass) * (

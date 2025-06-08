@@ -58,16 +58,16 @@ if __name__ == '__main__':
         # output_path = os.path.join("Root_BRIDGES", "simulations", "scene", "outputs", "fig_7.3")
         target_folder_key = "RootBRIDGES_0"
         
-        # target_days = np.arange(10, 61, 10)
+        target_days = np.arange(10, 61, 10)
         target_days = [50]
-        # target_concentrations = np.logspace(0, 4, 5) * 5e-3
+        target_concentrations = np.logspace(0, 4, 5) * 5e-3
         target_concentrations = [5e-1]
         
         for day in target_days:
             for concentration in target_concentrations:
                 analyze_data(scenarios=[f"{str(scenario_name)}_{concentration:.2e}_{day}D"], outputs_dirpath=output_path, target_folder_key=target_folder_key,
                                 inputs_dirpath="inputs",
-                                on_sums=True,
+                                on_sums=False,
                                 on_performance=False,
                                 animate_raw_logs=True,
                                 target_properties=None
