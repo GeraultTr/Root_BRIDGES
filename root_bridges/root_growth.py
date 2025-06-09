@@ -827,12 +827,20 @@ class RootGrowthModelCoupled(*inheriting):
                         supplying_element = self.g.node(index)
                         # We define the actual contribution of the current element based on total hexose consumption by growth
                         # of element n and the relative contribution of the current element to the pool of the potentially available hexose:
-                        hexose_actual_contribution_to_elongation = hexose_consumption_by_elongation \
-                                                                   * list_of_elongation_supporting_elements_hexose[
-                                                                       i] / n.hexose_possibly_required_for_elongation
-                        amino_acids_actual_contribution_to_elongation = amino_acids_consumption_by_elongation \
-                                                                   * list_of_elongation_supporting_elements_amino_acids[
-                                                                       i] / amino_acids_possibly_required_for_elongation
+                        if n.hexose_possibly_required_for_elongation > 0:
+                            hexose_actual_contribution_to_elongation = hexose_consumption_by_elongation \
+                                                                    * list_of_elongation_supporting_elements_hexose[
+                                                                        i] / n.hexose_possibly_required_for_elongation
+                        else:
+                            hexose_actual_contribution_to_elongation = 0
+                        
+                        if amino_acids_possibly_required_for_elongation > 0:
+                            amino_acids_actual_contribution_to_elongation = amino_acids_consumption_by_elongation \
+                                                                    * list_of_elongation_supporting_elements_amino_acids[
+                                                                        i] / amino_acids_possibly_required_for_elongation
+                        else:
+                            amino_acids_actual_contribution_to_elongation = 0
+
                         # The amount of hexose used for growth in this element is increased:
                         supplying_element.hexose_consumption_by_growth_amount += hexose_actual_contribution_to_elongation
                         supplying_element.hexose_consumption_by_growth += hexose_actual_contribution_to_elongation / self.time_step_in_seconds

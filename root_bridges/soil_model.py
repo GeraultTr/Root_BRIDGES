@@ -653,17 +653,20 @@ class SoilModel(*inheriting):
     @state
     def _dissolved_mineral_N(self, dissolved_mineral_N, dry_soil_mass, mineral_N_net_mineralization, 
                              mineralN_diffusion_from_roots, mineralN_diffusion_from_xylem, mineralN_uptake, mineral_N_fertilization, mineral_N_transport):
-        return dissolved_mineral_N + (self.time_step_in_seconds / dry_soil_mass) * (
+        balance = dissolved_mineral_N + (self.time_step_in_seconds / dry_soil_mass) * (
             mineral_N_net_mineralization
             + mineralN_diffusion_from_roots
             + mineralN_diffusion_from_xylem
             - mineralN_uptake
             + mineral_N_fertilization
-            + mineral_N_transport
-        )
+            + mineral_N_transport)
+        
+        balance[balance < 0] = 0
 
-    #TP@segmentation
-    #TP@state
+        return balance
+
+    @segmentation
+    @state
     def _C_mineralN_soil(self, dissolved_mineral_N, dry_soil_mass, soil_moisture, voxel_volume):
         return dissolved_mineral_N * (dry_soil_mass / (soil_moisture * voxel_volume)) / 14
 
