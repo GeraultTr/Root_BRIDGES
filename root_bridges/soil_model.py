@@ -106,7 +106,7 @@ class SoilModel(*inheriting):
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
     
     # All soluted
-    C_solutes_soil: float = declare(default=32.2 / 10, unit="mol.m-3", unit_comment="mol of  all dissolved mollecules in the soil solution", description="All dissolved mollecules concentration", 
+    Cv_solutes_soil: float = declare(default=32.2 / 10, unit="mol.m-3", unit_comment="mol of  all dissolved mollecules in the soil solution", description="All dissolved mollecules concentration", 
                                         value_comment="", references="", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
 
@@ -359,6 +359,7 @@ class SoilModel(*inheriting):
         self.voxels["C_mineralN_soil"] = self.voxels["dissolved_mineral_N"] * self.voxels["dry_soil_mass"] / self.voxels["water_volume"] / 14
         self.voxels["C_amino_acids_soil"] = self.voxels["DON"] * self.voxels["dry_soil_mass"] / self.voxels["water_volume"] / 14
         self.voxels["C_hexose_soil"] = self.voxels["DOC"] * self.voxels["dry_soil_mass"] / self.voxels["water_volume"] / 6 / 12
+        self.voxels["Cv_solute_soil"] = self.voxels["C_mineralN_soil"] # Until we are sure of proper initialization and balance of these different concentrations
     
     def add_patch_repartition_to_soil(self, property_name: str, patch_value: float, x_loc=None, y_loc=None, z_loc=None, 
                                                                         x_width=0, y_width=0, z_width=0, 
@@ -501,7 +502,7 @@ class SoilModel(*inheriting):
                 self.voxels["water_potential_soil"] = water_potential_soil
 
                 # Calculate Darcy flux for use in other equations
-                self.voxels["soil_water_flux"] = -K * (np.gradient(water_potential_soil, self.delta_z, axis=2) + self.water_volumic_mass * self.g_acceleration)
+                self.voxels["soil_water_flux"] = - K * (np.gradient(water_potential_soil, self.delta_z, axis=2) + self.water_volumic_mass * self.g_acceleration)
 
                 # Update water content
                 self.voxels["soil_moisture"] = self._soil_moisture(water_potential_soil)
@@ -680,10 +681,11 @@ class SoilModel(*inheriting):
     def _C_hexose_soil(self, DOC, dry_soil_mass, soil_moisture, voxel_volume):
         return DOC * (dry_soil_mass * (soil_moisture * voxel_volume)) / 14 / 6
     
-    #TP@postsegmentation
-    #TP@state
-    def _C_solutes_soil(self, C_hexose_soil, Cs_mucilage_soil, Cs_cells_soil, C_mineralN_soil, C_amino_acids_soil):
-        return C_hexose_soil + Cs_mucilage_soil + Cs_cells_soil + C_mineralN_soil + C_amino_acids_soil + self.C_solutes_background
+    @postsegmentation
+    @state
+    def _Cv_solutes_soil(self, C_hexose_soil, Cs_mucilage_soil, Cs_cells_soil, C_mineralN_soil, C_amino_acids_soil):
+        # return C_hexose_soil + Cs_mucilage_soil + Cs_cells_soil + C_mineralN_soil + C_amino_acids_soil + self.C_solutes_background # Commented until we are sure of proper initialization and balance of these different concentrations
+        return C_mineralN_soil
     
     @state
     def _water_volume(self, soil_moisture, voxel_volume):

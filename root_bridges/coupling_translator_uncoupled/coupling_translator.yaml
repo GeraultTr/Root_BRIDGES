@@ -86,6 +86,8 @@ RootNitrogenModel:
       symplasmic_volume: 1.0
     xylem_volume:
       xylem_volume: 1.0
+    phloem_volume:
+      phloem_volume: 1.0
     total_phloem_volume:
       total_phloem_volume: 1.0
   RootGrowthModel:
@@ -110,16 +112,24 @@ RootNitrogenModel:
       C_hexose_root: 1.0
   RootNitrogenModel: {}
   RootWaterModel:
-    radial_import_water:
-      radial_import_water: 1.0
-    radial_import_water_apoplastic:
-      radial_import_water_apoplastic: 1.0
-    axial_export_water_up:
-      axial_export_water_up: 1.0
-    axial_import_water_down:
-      axial_import_water_down: 1.0
+    radial_import_water_xylem:
+      radial_import_water_xylem: 1.0
+    radial_import_water_apoplastic_xylem:
+      radial_import_water_apoplastic_xylem: 1.0
+    axial_export_water_up_xylem:
+      axial_export_water_up_xylem: 1.0
+    axial_import_water_down_xylem:
+      axial_import_water_down_xylem: 1.0
+    radial_import_water_phloem:
+      radial_import_water_phloem: 1.0
+    axial_export_water_up_phloem:
+      axial_export_water_up_phloem: 1.0
+    axial_import_water_down_phloem:
+      axial_import_water_down_phloem: 1.0
     xylem_water:
       xylem_water: 1.0
+    phloem_water:
+      phloem_water: 1.0
   SoilModel:
     soil_AA:
       C_amino_acids_soil: 1.0
@@ -148,16 +158,28 @@ RootWaterModel:
   RootAnatomy:
     xylem_vessel_radii:
       xylem_vessel_radii: 1.0
+    phloem_vessel_radii:
+      phloem_vessel_radii: 1.0
     xylem_volume:
       xylem_volume: 1.0
-    kr_symplasmic_water:
-      kr_symplasmic_water: 1.0
-    kr_apoplastic_water:
-      kr_apoplastic_water: 1.0
+    phloem_volume:
+      phloem_volume: 1.0
+    kr_symplasmic_water_xylem:
+      kr_symplasmic_water_xylem: 1.0
+    kr_apoplastic_water_xylem:
+      kr_apoplastic_water_xylem: 1.0
+    kr_symplasmic_water_phloem:
+      kr_symplasmic_water_phloem: 1.0
     xylem_differentiation_factor:
       xylem_differentiation_factor: 1.0
   RootCarbonModel: {}
-  RootNitrogenModel: {}
+
+  RootNitrogenModel:
+    Cv_solute_xylem:
+      Cv_solute_xylem: 1.0
+    Cv_solute_phloem:
+      Cv_solute_phloem: 1.0
+
   RootGrowthModel:
     length:
       length: 1.0
@@ -173,6 +195,8 @@ RootWaterModel:
       water_potential_soil: 1.0
     soil_temperature:
       soil_temperature: 1.0
+    Cv_solute_soil:
+      Cv_solute_soil: 1.0
       
 SoilModel:
   RootAnatomy:
@@ -213,5 +237,5 @@ SoilModel:
       initial_length: 1.0
   RootWaterModel:
     water_uptake:
-      radial_import_water: 1.0
+      radial_import_water_xylem: 1.0
   SoilModel: {}

@@ -31,13 +31,13 @@ if __name__ == '__main__':
 
     # target_days = np.arange(10, 61, 1)
     target_days = np.arange(10, 61, 10)
-    # target_days = [50]
+    target_days = [51]
     # target_concentrations = np.logspace(0, 4, len(target_days)) * 5e-3
     # target_concentrations = np.logspace(0, 4, 11) * 5e-3
     target_concentrations = np.logspace(0, 4, 5) * 5e-3
-    # target_concentrations = [5e-1]    
+    target_concentrations = [5e-1]    
 
-    parallel = True
+    parallel = False
 
     for scenario_name, scenario in scenarios.items():
 
