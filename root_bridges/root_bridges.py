@@ -8,7 +8,7 @@ from root_bridges.root_growth import RootGrowthModelCoupled
 from root_bridges.soil_model import SoilModel
 
 # Untouched models
-from rhizodep.root_anatomy import RootAnatomy
+from root_cynaps.root_anatomy import RootAnatomy
 from root_cynaps.root_water import RootWaterModel
 
 # Utilities

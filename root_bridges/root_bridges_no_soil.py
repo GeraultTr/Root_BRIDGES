@@ -3,7 +3,7 @@ from root_bridges.root_CN import RootCNUnified
 from root_bridges.root_growth import RootGrowthModelCoupled
 
 # Untouched models
-from rhizodep.root_anatomy import RootAnatomy
+from root_cynaps.root_anatomy import RootAnatomy
 from root_cynaps.root_water import RootWaterModel
 
 # Utilities

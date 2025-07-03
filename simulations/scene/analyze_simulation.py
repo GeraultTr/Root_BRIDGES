@@ -67,9 +67,9 @@ if __name__ == '__main__':
             for concentration in target_concentrations:
                 analyze_data(scenarios=[f"{str(scenario_name)}_{concentration:.2e}_{day}D"], outputs_dirpath=output_path, target_folder_key=target_folder_key,
                                 inputs_dirpath="inputs",
-                                on_sums=False,
+                                on_sums=True,
                                 on_performance=False,
-                                animate_raw_logs=True,
+                                animate_raw_logs=False,
                                 target_properties=None
                                 )
         

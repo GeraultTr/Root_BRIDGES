@@ -19,7 +19,7 @@ if __name__ == '__main__':
     # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref_big_lats"])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref_0.1",	"RC_ref_0.01",	"RC_ref_0.05",	"RC_ref_0.5",	"RC_ref_5",	"RC_ref_50"])
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_ref"])
-    custom_output_folder = "outputs/fig_7.3"
+    custom_output_folder = "outputs/fig_7.4"
 
     scene_xrange = 0.15
     scene_yrange = 0.15
@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     # target_days = np.arange(10, 61, 1)
     target_days = np.arange(10, 61, 10)
-    # target_days = [50]
+    # target_days = [51]
     # target_concentrations = np.logspace(0, 4, len(target_days)) * 5e-3
     # target_concentrations = np.logspace(0, 4, 11) * 5e-3
     target_concentrations = np.logspace(0, 4, 5) * 5e-3
