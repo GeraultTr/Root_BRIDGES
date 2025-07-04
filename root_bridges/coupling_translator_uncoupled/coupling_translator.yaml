@@ -175,10 +175,10 @@ RootWaterModel:
   RootCarbonModel: {}
 
   RootNitrogenModel:
-    Cv_solute_xylem:
-      Cv_solute_xylem: 1.0
-    Cv_solute_phloem:
-      Cv_solute_phloem: 1.0
+    C_solute_xylem:
+      C_solute_xylem: 1.0
+    C_solute_phloem:
+      C_solute_phloem: 1.0
 
   RootGrowthModel:
     length:
