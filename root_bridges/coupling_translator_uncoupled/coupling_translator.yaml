@@ -114,8 +114,8 @@ RootNitrogenModel:
   RootWaterModel:
     radial_import_water_xylem:
       radial_import_water_xylem: 1.0
-    radial_import_water_apoplastic_xylem:
-      radial_import_water_apoplastic_xylem: 1.0
+    radial_import_water_xylem_apoplastic:
+      radial_import_water_xylem_apoplastic: 1.0
     axial_export_water_up_xylem:
       axial_export_water_up_xylem: 1.0
     axial_import_water_down_xylem:
