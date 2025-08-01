@@ -3,13 +3,13 @@ from root_bridges.root_CN import RootCNUnified
 from root_bridges.root_growth import RootGrowthModelCoupled
 
 # Untouched models
-from rhizodep.root_anatomy import RootAnatomy
-from root_cynaps.root_water import RootWaterModel
+from openalea.rootcynaps import RootAnatomy
+from openalea.rootcynaps import RootWaterModel
 
 # Utilities
 from openalea.metafspm.composite_wrapper import CompositeModel
 from openalea.metafspm.component_factory import Choregrapher
-from log.visualize import plot_mtg
+from openalea.fspm.utility.plot import plot_mtg
 
 
 class RootBRIDGES(CompositeModel):

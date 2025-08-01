@@ -24,10 +24,8 @@ RootAnatomy:
 RootCNUnified:
 
   RootAnatomy:
-    apoplasmic_exchange_surface:
-      apoplasmic_exchange_surface: 1.0
-    cortex_exchange_surface:
-      cortex_exchange_surface: 1.0
+    xylem_exchange_surface:
+      xylem_exchange_surface: 1.0
     endodermis_conductance_factor:
       endodermis_conductance_factor: 1.0
     phloem_exchange_surface:
@@ -40,8 +38,8 @@ RootCNUnified:
       symplasmic_volume: 1.0
     xylem_volume:
       xylem_volume: 1.0
-    xylem_exchange_surface:
-      xylem_exchange_surface: 1.0
+    phloem_volume:
+      phloem_volume: 1.0
     total_phloem_volume:
       total_phloem_volume: 1.0
 
@@ -72,16 +70,24 @@ RootCNUnified:
       total_living_struct_mass: 1.0
 
   RootWaterModel:
-    radial_import_water:
-      radial_import_water: 1.0
-    radial_import_water_apoplastic:
-      radial_import_water_apoplastic: 1.0
-    axial_export_water_up:
-      axial_export_water_up: 1.0
-    axial_import_water_down:
-      axial_import_water_down: 1.0
+    radial_import_water_xylem:
+      radial_import_water_xylem: 1.0
+    radial_import_water_xylem_apoplastic:
+      radial_import_water_xylem_apoplastic: 1.0
+    axial_export_water_up_xylem:
+      axial_export_water_up_xylem: 1.0
+    axial_import_water_down_xylem:
+      axial_import_water_down_xylem: 1.0
+    radial_import_water_phloem:
+      radial_import_water_phloem: 1.0
+    axial_export_water_up_phloem:
+      axial_export_water_up_phloem: 1.0
+    axial_import_water_down_phloem:
+      axial_import_water_down_phloem: 1.0
     xylem_water:
       xylem_water: 1.0
+    phloem_water:
+      phloem_water: 1.0
 
   SoilModel:
     C_hexose_soil:
@@ -126,16 +132,26 @@ RootWaterModel:
   RootAnatomy:
     xylem_vessel_radii:
       xylem_vessel_radii: 1.0
+    phloem_vessel_radii:
+      phloem_vessel_radii: 1.0
     xylem_volume:
       xylem_volume: 1.0
-    kr_symplasmic_water:
-      kr_symplasmic_water: 1.0
-    kr_apoplastic_water:
-      kr_apoplastic_water: 1.0
+    phloem_volume:
+      phloem_volume: 1.0
+    kr_symplasmic_water_xylem:
+      kr_symplasmic_water_xylem: 1.0
+    kr_apoplastic_water_xylem:
+      kr_apoplastic_water_xylem: 1.0
+    kr_symplasmic_water_phloem:
+      kr_symplasmic_water_phloem: 1.0
     xylem_differentiation_factor:
       xylem_differentiation_factor: 1.0
 
-  RootCNUnified: {}
+  RootCNUnified:
+    C_solutes_xylem:
+      C_solutes_xylem: 1.0
+    C_solutes_phloem:
+      C_solutes_phloem: 1.0
 
   RootGrowthModelCoupled:
     length:
@@ -150,10 +166,12 @@ RootWaterModel:
   RootWaterModel: {}
 
   SoilModel:
-    soil_temperature:
-      soil_temperature: 1.0
     soil_water_pressure:
       water_potential_soil: 1.0
+    soil_temperature:
+      soil_temperature: 1.0
+    Cv_solutes_soil:
+      Cv_solutes_soil: 1.0
       
 
 SoilModel:
@@ -200,5 +218,6 @@ SoilModel:
 
   RootWaterModel:
     water_uptake:
-      radial_import_water: 1.0
+      radial_import_water_xylem: 1.0
+      
   SoilModel: {}

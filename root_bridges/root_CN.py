@@ -3,7 +3,7 @@ from openalea.metafspm.component_factory import *
 from openalea.metafspm.component import declare
 
 from rhizodep.root_carbon import RootCarbonModel
-from root_cynaps.root_nitrogen import RootNitrogenModel
+from openalea.rootcynaps import RootNitrogenModel
 
 
 # Deported class inheritance to include this information in the __globals__, so that it can be picked by decorators to merge the steps of all classes
@@ -13,13 +13,19 @@ inheriting = (RootCarbonModel, RootNitrogenModel)
 @dataclass
 class RootCNUnified(*inheriting):
 
-    # INPUTS
+    # @note INPUTS
+
+    # FROM SHOOT MODEL
+    Cv_sucrose_phloem_collar: float = declare(default=950, unit="mol.m-3", unit_comment="", description="Sucrose volumic concentration in phloem at collar point", 
+                                       min_value=0, max_value=1200, value_comment="", references="Winter et al. 1992", DOI="",
+                                        variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
+
     # FROM GROWTH MODEL
     amino_acids_consumption_by_growth: float = declare(default=0., unit="mol.s-1", unit_comment="", description="amino_acids consumption rate by growth processes", 
                                                  min_value="", max_value="", value_comment="", references="", DOI="",
                                                   variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
 
-    # STATE VARIABLES
+    # @note STATE VARIABLES
 
     N_metabolic_respiration: float = declare(default=0., unit="mol.s-1", unit_comment="of carbon", description="Respiration related to nitrogen metabolism", 
                                             min_value="", max_value="", value_comment="", references="", DOI="",
@@ -31,7 +37,13 @@ class RootCNUnified(*inheriting):
                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                     variable_type="plant_scale_state", by="model_cn", state_variable_type="", edit_by="user")
     
-    # PARAMETERS
+    # @note SUMMED STATE VARIABLES
+
+    AA_root_to_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of amino acids", description="",
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+    
+    # @note PARAMETERS
     r_hexose_AA: float = declare(default=4.5/6, unit="adim", unit_comment="mol of hexose per mol of amino acids in roots", description="stoechiometric ratio during amino acids synthesis for hexose consumption", 
                                 min_value="", max_value="", value_comment="", references="we hypothesize from Yemm and Willis 1956 that synthetized soluble amino acids are mainly composed of glutamine and asparagine", DOI="",
                                 variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
@@ -71,6 +83,22 @@ class RootCNUnified(*inheriting):
         self.previous_C_amount_in_the_root_system = self.compute_root_system_C_content()
         # self.total_root_sucrose_and_living_struct_mass() # Needed otherwise first shoot unloading will be unrealistic
 
+        self.solute_configs["C_sucrose_root"] = {
+        "solute_massic_concentration_prop": "C_sucrose_root",
+        "conductive_element_volume_prop": "phloem_volume",
+        "water_flux_prop": "axial_export_water_up_phloem",
+        "radial_solute_flux": lambda n: (- n.hexose_diffusion_from_phloem / 2.
+                                        - n.hexose_active_production_from_phloem / 2.
+                                        - n.phloem_hexose_exudation / 2.
+                                        + n.sucrose_loading_in_phloem
+                                        + n.phloem_hexose_uptake_from_soil / 2.),
+        "boundary_shoot_solute_concentration": lambda props: props["Cv_sucrose_phloem_collar"][1],
+        "solute_flux_to_shoot": "sucrose_root_to_shoot_phloem",
+        "solute_volumic_concentration_bounds": (0, 5e4),
+        }
+
+    # @note PROCESSES
+
     # Note, here the decorator naming doesn't make much sense, but it was placed so that resolution of this flux is made after every other one.
     # Indeed, the expected behovior is to have rates computed from previous time step states. However, if we didn't waited for all import / export to compute,
     # This respiration would have reflected states of two time-steps ago.
@@ -85,7 +113,85 @@ class RootCNUnified(*inheriting):
         transport_respiration = self.respi_costs_mineralN_import * (import_Nm + export_Nm + import_AA + export_AA)
         anabolism_respiration = self.respi_costs_mineralN_reduction * AA_synthesis * self.r_Nm_AA
         return transport_respiration + anabolism_respiration
+    
 
+    @rate
+    def _hexose_diffusion_from_phloem(self, length, phloem_exchange_surface, C_sucrose_root, C_hexose_root,
+                                             hexose_consumption_by_growth, soil_temperature):
+        """
+        Superimposing original, staying with a massic concentration gradient as fist approximation to avoid changing parameters
+        """
+
+        # We consider all the cases where no net exchange should be allowed:
+        if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
+            return 0
+
+        else:
+            phloem_permeability = self.phloem_permeability * (1 + hexose_consumption_by_growth /
+                                                                self.reference_rate_of_hexose_consumption_by_growth)
+
+            phloem_permeability *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                                    T_ref=self.phloem_unloading_T_ref,
+                                                                    A=self.phloem_unloading_A,
+                                                                    B=self.phloem_unloading_B,
+                                                                    C=self.phloem_unloading_C)
+
+            return 2. * phloem_permeability * (C_sucrose_root - C_hexose_root / 2.) * phloem_exchange_surface
+
+    @rate
+    def _hexose_active_production_from_phloem(self, C_sucrose_root, length, phloem_exchange_surface,
+                                              hexose_consumption_by_growth, soil_temperature):
+        """
+        Superimposing original, staying with a massic concentration gradient as fist approximation to avoid changing parameters
+        """
+        # We consider all the cases where no net exchange should be allowed:
+        if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
+            return 0
+
+        else:
+            # Removed condition to limit based on deficit compared to RhizoDep
+            max_unloading_rate = self.max_unloading_rate * (1 + hexose_consumption_by_growth /
+                                                            self.reference_rate_of_hexose_consumption_by_growth)
+            max_unloading_rate *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                                T_ref=self.phloem_unloading_T_ref,
+                                                                A=self.phloem_unloading_A,
+                                                                B=self.phloem_unloading_B,
+                                                                C=self.phloem_unloading_C)
+            
+            return max(2. * max_unloading_rate * C_sucrose_root * phloem_exchange_surface / (
+                            self.Km_unloading + C_sucrose_root), 0) 
+    
+
+    @rate
+    def _diffusion_AA_phloem(self, amino_acids_consumption_by_growth, AA, phloem_AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, phloem_volume):
+        """ Passive radial diffusion between phloem and cortex through plasmodesmata """
+        diffusion_phloem = self.diffusion_phloem * (1 + amino_acids_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
+
+        diffusion_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                                    T_ref=self.passive_processes_T_ref,
+                                                                    A=self.passive_processes_A,
+                                                                    B=self.passive_processes_B,
+                                                                    C=self.passive_processes_C)
+
+        return diffusion_phloem * (max(0, (phloem_AA * living_struct_mass) / phloem_volume) - max(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
+
+
+    @rate
+    def _unloading_AA_phloem(self, phloem_AA, amino_acids_consumption_by_growth, phloem_exchange_surface, soil_temperature, living_struct_mass, phloem_volume):
+        Cv_AA_phloem = (phloem_AA * living_struct_mass) / phloem_volume
+        
+        vmax_unloading_AA_phloem = self.vmax_unloading_AA_phloem * (1 + amino_acids_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
+        vmax_unloading_AA_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                            T_ref=self.active_processes_T_ref,
+                                                            A=self.active_processes_A,
+                                                            B=self.active_processes_B,
+                                                            C=self.active_processes_C)
+        
+        return min(vmax_unloading_AA_phloem * Cv_AA_phloem * phloem_exchange_surface / (
+                    self.km_unloading_AA_phloem + Cv_AA_phloem), phloem_AA * living_struct_mass / 2)
+
+
+    # @note CONCENTRATIONS BALANCE
 
     @state
     def _C_hexose_root(self, vertex_index, C_hexose_root, living_struct_mass, hexose_exudation, hexose_uptake_from_soil,
@@ -158,79 +264,25 @@ class RootCNUnified(*inheriting):
 
         else:
             return 0
-        
-
-    @rate
-    def _nitrate_transporters_affinity_factor(self, Nm):
-        return 1
     
 
-    @rate
-    def _diffusion_AA_phloem(self, amino_acids_consumption_by_growth, AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, deficit_AA):
-        """ Passive radial diffusion between phloem and cortex through plasmodesmata """
-        diffusion_phloem = self.diffusion_phloem * (1 + amino_acids_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
+    # @note Disable processes from base components
 
-        diffusion_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
-                                                                    T_ref=self.passive_processes_T_ref,
-                                                                    A=self.passive_processes_A,
-                                                                    B=self.passive_processes_B,
-                                                                    C=self.passive_processes_C)
-
-        return diffusion_phloem * (max(0, self.props["C_phloem_AA"][1]) - max(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
-
-
-    @rate
-    def _unloading_AA_phloem(self, amino_acids_consumption_by_growth, phloem_exchange_surface, soil_temperature):
-        vmax_unloading_AA_phloem = self.vmax_unloading_AA_phloem * (1 + amino_acids_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
-        vmax_unloading_AA_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
-                                                            T_ref=self.active_processes_T_ref,
-                                                            A=self.active_processes_A,
-                                                            B=self.active_processes_B,
-                                                            C=self.active_processes_C)
-        
-        return max(vmax_unloading_AA_phloem * self.props["C_phloem_AA"][1] * phloem_exchange_surface / (
-                    self.km_unloading_AA_phloem + self.props["C_phloem_AA"][1]), 0)
-        
-
-    # @rate
-    # def _hexose_active_production_from_phloem(self, length, phloem_exchange_surface,
-    #                                           hexose_consumption_by_growth, soil_temperature):
-    #     # We consider all the cases where no net exchange should be allowed:
-    #     if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
-    #         return 0
-
-    #     else:
-    #         # Removed condition to limit based on deficit compared to RhizoDep
-    #         max_unloading_rate = self.max_unloading_rate * (1 + hexose_consumption_by_growth /
-    #                                                         self.reference_rate_of_hexose_consumption_by_growth)
-    #         max_unloading_rate *= self.temperature_modification(soil_temperature=soil_temperature,
-    #                                                             T_ref=self.phloem_unloading_T_ref,
-    #                                                             A=self.phloem_unloading_A,
-    #                                                             B=self.phloem_unloading_B,
-    #                                                             C=self.phloem_unloading_C)
-            
-    #         return max(2. * max_unloading_rate * self.props["C_sucrose_root"][1] * phloem_exchange_surface / (
-    #                 self.Km_unloading + self.props["C_sucrose_root"][1]), 0)
-        
+    @state
+    def _C_sucrose_root(self):
+        """
+        Handled by the heterogeneous axial transport model now
+        """
+        return
     
-    # # Superimposing original
-    # @rate
-    # def _hexose_diffusion_from_phloem(self, length, phloem_exchange_surface, C_hexose_root,
-    #                                          hexose_consumption_by_growth, living_struct_mass, symplasmic_volume, soil_temperature):
+    @stepinit
+    def shoot_sucrose_supply_and_spreading(self):
+        """
+        Handled by the heterogeneous axial transport model now
+        """
+        return
+    
 
-    #     # We consider all the cases where no net exchange should be allowed:
-    #     if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
-    #         return 0
+        
 
-    #     else:
-    #         phloem_permeability = self.phloem_permeability * (1 + hexose_consumption_by_growth /
-    #                                                             self.reference_rate_of_hexose_consumption_by_growth)
-
-    #         phloem_permeability *= self.temperature_modification(soil_temperature=soil_temperature,
-    #                                                                 T_ref=self.phloem_unloading_T_ref,
-    #                                                                 A=self.phloem_unloading_A,
-    #                                                                 B=self.phloem_unloading_B,
-    #                                                                 C=self.phloem_unloading_C)
-
-    #         return 2. * phloem_permeability * ((self.props["C_sucrose_root"][1] * self.props["total_living_struct_mass"][1] / self.props["total_phloem_volume"][1])
-    #                                             - (C_hexose_root / 2.) * (living_struct_mass / symplasmic_volume)) * phloem_exchange_surface
+    
