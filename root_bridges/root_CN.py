@@ -39,7 +39,13 @@ class RootCNUnified(*inheriting):
     
     # @note SUMMED STATE VARIABLES
 
-    AA_root_to_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of amino acids", description="",
+    sucrose_root_to_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of sucrose", description="",
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+    Cv_sucrose_average: float =                   declare(default=1., unit="mol.m-3", unit_comment="of amino acids", description="", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+    Cv_hexose_average: float =                   declare(default=1., unit="mol.m-3", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     
@@ -85,6 +91,7 @@ class RootCNUnified(*inheriting):
 
         self.solute_configs["C_sucrose_root"] = {
         "solute_massic_concentration_prop": "C_sucrose_root",
+        "solute_massic_concentration_prop_symplasm": "C_hexose_root",
         "conductive_element_volume_prop": "phloem_volume",
         "water_flux_prop": "axial_export_water_up_phloem",
         "radial_solute_flux": lambda n: (- n.hexose_diffusion_from_phloem / 2.
@@ -92,9 +99,10 @@ class RootCNUnified(*inheriting):
                                         - n.phloem_hexose_exudation / 2.
                                         + n.sucrose_loading_in_phloem
                                         + n.phloem_hexose_uptake_from_soil / 2.),
+        "flux_shoot_boundary": lambda props: props["sucrose_input_rate"][1],
         "boundary_shoot_solute_concentration": lambda props: props["Cv_sucrose_phloem_collar"][1],
         "solute_flux_to_shoot": "sucrose_root_to_shoot_phloem",
-        "solute_volumic_concentration_bounds": (0, 5e4),
+        "solute_volumic_concentration_bounds": (10, 2e4),
         }
 
     # @note PROCESSES
@@ -116,18 +124,28 @@ class RootCNUnified(*inheriting):
     
 
     @rate
-    def _hexose_diffusion_from_phloem(self, length, phloem_exchange_surface, C_sucrose_root, C_hexose_root,
-                                             hexose_consumption_by_growth, soil_temperature):
+    def _hexose_diffusion_from_phloem(self, type, length, phloem_exchange_surface, C_sucrose_root, C_hexose_root,
+                                             hexose_consumption_by_growth, living_struct_mass, symplasmic_volume, phloem_volume, soil_temperature):
         """
         Superimposing original, staying with a massic concentration gradient as fist approximation to avoid changing parameters
         """
 
         # We consider all the cases where no net exchange should be allowed:
-        if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
+        if length <= 0. or type == "Just_dead" or type == "Dead":
+            print("not emerged")
             return 0
 
         else:
-            phloem_permeability = self.phloem_permeability * (1 + hexose_consumption_by_growth /
+            Cv_sucrose_root = C_sucrose_root * living_struct_mass / phloem_volume
+            Cv_hexose_root = C_hexose_root * living_struct_mass / symplasmic_volume
+
+            # if Cv_sucrose_root <= Cv_hexose_root / 2:
+            #     print("sucrose limits", Cv_sucrose_root, Cv_hexose_root / 2., living_struct_mass, hexose_consumption_by_growth )
+            #     return 0
+            # else:
+            # print(phloem_volume, symplasmic_volume)
+            # print("gradient", Cv_sucrose_root,  Cv_hexose_root / 2., living_struct_mass, hexose_consumption_by_growth)
+            phloem_permeability = self.diffusion_phloem * (1 + hexose_consumption_by_growth /
                                                                 self.reference_rate_of_hexose_consumption_by_growth)
 
             phloem_permeability *= self.temperature_modification(soil_temperature=soil_temperature,
@@ -136,7 +154,7 @@ class RootCNUnified(*inheriting):
                                                                     B=self.phloem_unloading_B,
                                                                     C=self.phloem_unloading_C)
 
-            return 2. * phloem_permeability * (C_sucrose_root - C_hexose_root / 2.) * phloem_exchange_surface
+            return 2. * phloem_permeability * (Cv_sucrose_root - Cv_hexose_root / 2.) * phloem_exchange_surface
 
     @rate
     def _hexose_active_production_from_phloem(self, C_sucrose_root, length, phloem_exchange_surface,
@@ -150,7 +168,7 @@ class RootCNUnified(*inheriting):
 
         else:
             # Removed condition to limit based on deficit compared to RhizoDep
-            max_unloading_rate = self.max_unloading_rate * (1 + hexose_consumption_by_growth /
+            max_unloading_rate = 0 * self.max_unloading_rate * (1 + hexose_consumption_by_growth /
                                                             self.reference_rate_of_hexose_consumption_by_growth)
             max_unloading_rate *= self.temperature_modification(soil_temperature=soil_temperature,
                                                                 T_ref=self.phloem_unloading_T_ref,
@@ -265,6 +283,34 @@ class RootCNUnified(*inheriting):
         else:
             return 0
     
+    @state
+    def _C_solutes_phloem(self, C_sucrose_root, phloem_AA):
+        """
+        Sucrose could not be included before because phloem massic concentrations were not computed with volumic considerations
+        """
+        ions_proportion = 0.4 # To account for high 300 mM concentrations of potassium in phloem sap, related to sucrose symport co-transport Diant et al. 2010
+        return (C_sucrose_root + phloem_AA) / (1 - ions_proportion)
+    
+
+    @totalstate
+    def _Cv_sucrose_average(self, C_sucrose_root, living_struct_mass, phloem_volume):
+        total_amount = 0
+        total_volume = 0
+        for vid in living_struct_mass.keys():
+            if living_struct_mass[vid] > 0:
+                total_amount += C_sucrose_root[vid] * living_struct_mass[vid]
+                total_volume += phloem_volume[vid]
+        return total_amount / total_volume
+
+    @totalstate
+    def _Cv_hexose_average(self, C_hexose_root, living_struct_mass, symplasmic_volume):
+        total_amount = 0
+        total_volume = 0
+        for vid in living_struct_mass.keys():
+            if living_struct_mass[vid] > 0:
+                total_amount += C_hexose_root[vid] * living_struct_mass[vid]
+                total_volume += symplasmic_volume[vid]
+        return total_amount / total_volume
 
     # @note Disable processes from base components
 

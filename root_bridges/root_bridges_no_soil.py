@@ -80,7 +80,6 @@ class RootBRIDGES(CompositeModel):
         # Performed in initialization and run to update coordinates
         plot_mtg(self.g_root, position=self.coordinates, rotation=self.rotation)
 
-        self.name = name
         # ROOT PROPERTIES INITIAL PASSING IN MTG
         self.root_props["plant_id"] = name
         self.root_props["model_name"] = self.__class__.__name__
