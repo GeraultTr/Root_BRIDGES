@@ -8,8 +8,8 @@ from root_bridges.root_bridges_no_soil import RootBRIDGES
 from openalea.rhizosoil.model import RhizoSoil
 
 # Utility packages
-from initialize.initialize import MakeScenarios as ms
-from log.logging import Logger
+from openalea.fspm.utility.scenario.initialize import MakeScenarios as ms
+from openalea.fspm.utility.writer.logging import Logger
 from openalea.metafspm.scene_wrapper import play_Orchestra
 from openalea.fspm.utility.plot import analyze_data
 

@@ -5,7 +5,6 @@ from openalea.metafspm.component import declare
 from rhizodep.root_carbon import RootCarbonModel
 from openalea.rootcynaps import RootNitrogenModel
 
-
 # Deported class inheritance to include this information in the __globals__, so that it can be picked by decorators to merge the steps of all classes
 inheriting = (RootCarbonModel, RootNitrogenModel)
 
@@ -91,7 +90,6 @@ class RootCNUnified(*inheriting):
 
         self.solute_configs["C_sucrose_root"] = {
         "solute_massic_concentration_prop": "C_sucrose_root",
-        "solute_massic_concentration_prop_symplasm": "C_hexose_root",
         "conductive_element_volume_prop": "phloem_volume",
         "water_flux_prop": "axial_export_water_up_phloem",
         "radial_solute_flux": lambda n: (- n.hexose_diffusion_from_phloem / 2.
@@ -102,7 +100,7 @@ class RootCNUnified(*inheriting):
         "flux_shoot_boundary": lambda props: props["sucrose_input_rate"][1],
         "boundary_shoot_solute_concentration": lambda props: props["Cv_sucrose_phloem_collar"][1],
         "solute_flux_to_shoot": "sucrose_root_to_shoot_phloem",
-        "solute_volumic_concentration_bounds": (10, 2e4),
+        "solute_volumic_concentration_bounds": (10, 4e3),
         }
 
     # @note PROCESSES

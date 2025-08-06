@@ -27,6 +27,9 @@ class RootGrowthModelCoupled(*inheriting):
     nitrate_transporters_affinity_factor: float = declare(default=1., unit="mol.s-1", unit_comment="of nitrates", description="nitrate_transporters_affinity_factor, introduced to account for NRT1 signalling function when going through LATS regime", 
                                                     min_value="", max_value="", value_comment="", references="Remans et al 2006", DOI="", 
                                                     variable_type="input", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
+    synchronize_adventitious_emergence: int = declare(default=-1, unit="", unit_comment="", description="3 level boolean commanding next non emerged adventitious, if different from -1, blocks thermal time based emergence delay, if 0 waits for next, 1 emerge next.", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="", 
+                                                    variable_type="input", by="model_shoot", state_variable_type="intensive", edit_by="user")
 
     # STATE VARIABLES
     amino_acids_consumption_by_growth: float = declare(default=0., unit="mol.s-1", unit_comment="", description="amino_acids consumption rate by growth processes", 
@@ -56,6 +59,25 @@ class RootGrowthModelCoupled(*inheriting):
     def __init__(self, g=None ,time_step=3600, **scenario):
         """Pass to inherited init, necessary with data classes"""
         super().__init__(g, time_step, **scenario)
+
+        if self.props["synchronize_adventitious_emergence"][1] != -1:
+            self.adventitous_primordia_to_emerge = {}
+            for vid in self.vertices:
+                n = self.g.node(vid)
+                if n.type == "Adventitious_root_before_emergence":
+                    self.adventitous_primordia_to_emerge[vid] = n.emergence_delay_in_thermal_time
+            
+            # TODO also insert in root
+            self.next_adventitious_primordium =  min(self.adventitous_primordia_to_emerge, key=self.adventitous_primordia_to_emerge.get)
+
+            # TODO If entering in emergence loop
+            apex = ''
+            if apex.index() == self.next_adventitious_primordium and self.props["synchronize_adventitious_emergence"][1] == 1:
+                self.adventitous_primordia_to_emerge.pop(self.next_adventitious_primordium)
+                self.next_adventitious_primordium =  min(self.adventitous_primordia_to_emerge, key=self.adventitous_primordia_to_emerge.get)
+                # Back to listening mode
+                self.props["synchronize_adventitious_emergence"][1] = 0
+
 
  
 

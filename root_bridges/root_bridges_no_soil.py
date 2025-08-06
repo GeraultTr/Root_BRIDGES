@@ -42,10 +42,11 @@ class RootBRIDGES(CompositeModel):
         self.rotation = rotation
 
         Choregrapher().add_simulation_time_step(time_step)
-        self.time = 0
+        # self.time = 0
 
         parameters = scenario["parameters"]
         root_parameters = parameters["root_bridges"]["roots"]
+        self.time = root_parameters["plant_age"]
         self.input_tables = scenario["input_tables"]
 
         # INIT INDIVIDUAL MODULES
