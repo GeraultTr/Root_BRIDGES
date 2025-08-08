@@ -27,7 +27,7 @@ class RootGrowthModelCoupled(*inheriting):
     nitrate_transporters_affinity_factor: float = declare(default=1., unit="mol.s-1", unit_comment="of nitrates", description="nitrate_transporters_affinity_factor, introduced to account for NRT1 signalling function when going through LATS regime", 
                                                     min_value="", max_value="", value_comment="", references="Remans et al 2006", DOI="", 
                                                     variable_type="input", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
-    synchronize_adventitious_emergence: int = declare(default=-1, unit="", unit_comment="", description="3 level boolean commanding next non emerged adventitious, if different from -1, blocks thermal time based emergence delay, if 0 waits for next, >=1 emerge next.", 
+    adventitious_to_emerge: list = declare(default=None, unit="", unit_comment="", description="List of adventitous roots delays before emergence starting from current time step, length of list indicates the number to emerge", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="", 
                                                     variable_type="input", by="model_shoot", state_variable_type="descriptor", edit_by="user")
 
@@ -55,13 +55,17 @@ class RootGrowthModelCoupled(*inheriting):
                                 min_value="", max_value="", value_comment="Based on glutamic acid", references="", DOI="",
                                 variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
 
+    # PARAMETERS
+    synchronize_adventitious_emergence: bool = declare(default=False, unit="", unit_comment="", description="boolean to choose option where root nodal emergence depend on shoot leaf emergence dynamic", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="", 
+                                                    variable_type="parameter", by="model_shoot", state_variable_type="descriptor", edit_by="user")
+
 
     def __init__(self, g=None ,time_step=3600, **scenario):
         """Pass to inherited init, necessary with data classes"""
         super().__init__(g, time_step, **scenario)
 
-        if self.props["synchronize_adventitious_emergence"][1] != -1:
-
+        if self.synchronize_adventitious_emergence:
             self.adventitous_primordia_to_emerge = {}
             for vid in self.vertices:
                 n = self.g.node(vid)
@@ -156,22 +160,19 @@ class RootGrowthModelCoupled(*inheriting):
         # -----------------------------------------------------------------------------------------------------
         # If the seminal root has not emerged yet:
         if apex.type == "Seminal_root_before_emergence" or apex.type == "Adventitious_root_before_emergence":
-            if apex.type == "Seminal_root_before_emergence":
-                condition_for_axis_emergence = ( apex.thermal_time_since_primordium_formation + self.time_step_in_seconds * temperature_time_adjustment) >= apex.emergence_delay_in_thermal_time
-            else: # If adventitious
-                if self.props["synchronize_adventitious_emergence"][1] == -1:
-                    condition_for_axis_emergence = ( apex.thermal_time_since_primordium_formation + self.time_step_in_seconds * temperature_time_adjustment) >= apex.emergence_delay_in_thermal_time
-                else:
-                    condition_for_axis_emergence = apex.index() == self.next_adventitious_primordium and self.props["synchronize_adventitious_emergence"][1] >= 1
-                    if condition_for_axis_emergence:
-                        apex.emergence_delay_in_thermal_time = 0
-                        self.adventitous_primordia_to_emerge.pop(self.next_adventitious_primordium)
-                        self.next_adventitious_primordium =  min(self.adventitous_primordia_to_emerge, key=self.adventitous_primordia_to_emerge.get)
-                        # Reduce the number of nodals to emerge by 1
-                        self.props["synchronize_adventitious_emergence"][1] -= 1
+            # Handle special delay management when adventitious emergence is controled by the shoot
+            if apex.type == "Adventitious_root_before_emergence" and self.synchronize_adventitious_emergence:
+                condition_for_axis_emergence = apex.index() == self.next_adventitious_primordium and len(self.props["adventitious_to_emerge"][1]) > 0
+                if condition_for_axis_emergence:
+                    apex.thermal_time_since_primordium_formation = 0
+                    apex.emergence_delay_in_thermal_time = self.props["adventitious_to_emerge"][1][0]
+                    self.adventitous_primordia_to_emerge.pop(self.next_adventitious_primordium)
+                    self.next_adventitious_primordium =  min(self.adventitous_primordia_to_emerge, key=self.adventitous_primordia_to_emerge.get)
+                    # Reduce the number of nodals to emerge by 1
+                    self.props["adventitious_to_emerge"][1].pop(0)
                 
             # If the time elapsed since the last emergence of seminal root is higher than the prescribed interval time:
-            if condition_for_axis_emergence:
+            if (apex.thermal_time_since_primordium_formation + self.time_step_in_seconds * temperature_time_adjustment) >= apex.emergence_delay_in_thermal_time:
                 # The potential time elapsed since seminal root's possible emergence is calculated:
                 apex.thermal_potential_time_since_emergence = apex.thermal_time_since_primordium_formation + self.time_step_in_seconds * temperature_time_adjustment \
                                                               - apex.emergence_delay_in_thermal_time

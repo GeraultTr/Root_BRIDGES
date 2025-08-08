@@ -130,7 +130,6 @@ class RootCNUnified(*inheriting):
 
         # We consider all the cases where no net exchange should be allowed:
         if length <= 0. or type == "Just_dead" or type == "Dead":
-            print("not emerged")
             return 0
 
         else:
