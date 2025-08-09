@@ -22,6 +22,7 @@ if __name__ == "__main__":
     scene_xrange = 0.15
     scene_yrange = 0.15
     sowing_density = 250
+    row_spacing = 0.15
     environment_models_number = 1
     subprocesses_number = int(max(scene_xrange * scene_yrange * sowing_density, 1)) + environment_models_number
     parallel_development = 1 # To keep room in CPUs if launching dev simulations in parallel on the machine
@@ -69,7 +70,7 @@ if __name__ == "__main__":
                                 soil_model=RhizoSoil, soil_scenario=scenario,
                                 translator_path=root_bridges.__path__[0],
                                 logger_class=Logger, log_settings=Logger.heavy_log,
-                                scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density,
+                                scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density, row_spacing=row_spacing,
                                 time_step=3600, n_iterations=24*80)
             
             target_folder_key = "RootBRIDGES_0"
