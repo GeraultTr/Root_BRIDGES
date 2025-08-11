@@ -1336,9 +1336,9 @@ class RootGrowthModelCoupled(*inheriting):
             # # when the element becomes a segment.
 
             # We calculate the equivalent of a thermal time for the current time step:
-            temperature_time_adjustment = self.temperature_modification(process_at_T_ref=self.process_at_T_ref,
+            temperature_time_adjustment = max(1e-3, self.temperature_modification(process_at_T_ref=self.process_at_T_ref,
                                                                     soil_temperature=n.soil_temperature,
-                                                                    T_ref=self.T_ref, A=self.A, B=self.B, C=self.C)
+                                                                    T_ref=self.T_ref, A=self.A, B=self.B, C=self.C)) # 1e-3 to avoid division by 0 bellow
             elapsed_thermal_time = self.time_step_in_seconds * temperature_time_adjustment
 
             # We keep in memory the initial total mass of root hairs (possibly including dead hairs):
