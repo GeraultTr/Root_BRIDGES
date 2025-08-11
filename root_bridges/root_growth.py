@@ -72,33 +72,33 @@ class RootGrowthModelCoupled(*inheriting):
                 if n.type == "Adventitious_root_before_emergence":
                     self.adventitous_primordia_to_emerge[vid] = n.emergence_delay_in_thermal_time
             
-            # TODO also insert in root
             self.next_adventitious_primordium =  min(self.adventitous_primordia_to_emerge, key=self.adventitous_primordia_to_emerge.get)
-            
-            # # TODO If entering in emergence loop
-            # apex = ''
-            # if apex.index() == self.next_adventitious_primordium and self.props["synchronize_adventitious_emergence"][1] >= 1:
-            #     self.adventitous_primordia_to_emerge.pop(self.next_adventitious_primordium)
-            #     self.next_adventitious_primordium =  min(self.adventitous_primordia_to_emerge, key=self.adventitous_primordia_to_emerge.get)
-            #     # Back to listening mode
-            #     self.props["synchronize_adventitious_emergence"][1] = 0
 
 
  
 
     # SUBDIVISIONS OF THE SCHEDULING LOOP
     # -----------------------------------
-    @stepinit
-    def reinitializing_growth_variables(self):
+
+    # Function that calculates the potential growth of the whole MTG at a given time step:
+    @potential
+    @state
+    def potential_growth(self):
         """
-        This function re-initializes different growth-related variables (e.g. potential growth variables).
-        EDIT : Added amino acids growth and elongation variables for reinitialization TODO : Really usefull for all? in Some funcs, it seems repeated.
+        This function covers the whole root MTG and computes the potential growth of segments and apices.
         :return:
         """
-        # We cover all the vertices in the MTG:
-        for vid in self.g.vertices_iter(scale=1):
-            # n represents the vertex:
-            n = self.g.node(vid)
+        # Repeated calls
+        g = self.g
+        potential_apex_development = self.potential_apex_development
+        potential_segment_development = self.potential_segment_development
+        temperature_modification = self.growth_temperature_modification
+
+        # We simulate the development of all apices and segments in the MTG:
+        for vid in g.vertices_iter(scale=1):
+            n = g.node(vid)
+
+            # Re-initializes different growth-related variables (e.g. potential growth variables).
 
             # We set to 0 the growth-related variables:
             n.hexose_consumption_by_growth_amount = 0.
@@ -124,7 +124,14 @@ class RootGrowthModelCoupled(*inheriting):
             n.theoretical_radius = n.radius
             n.initial_struct_mass = n.struct_mass
             n.initial_living_root_hairs_struct_mass = n.living_root_hairs_struct_mass
-        return
+
+            # Store temperature modifications for further calls
+            n.temperature_modification = temperature_modification(n.soil_temperature)
+
+            if n.label == "Apex":
+                potential_apex_development(apex=n)
+            elif n.label == "Segment":
+                potential_segment_development(segment=n)
 
 
     # Function calculating the potential development of an apex:
@@ -152,9 +159,7 @@ class RootGrowthModelCoupled(*inheriting):
 
         # We calculate a coefficient that will modify the different "ages" experienced by roots according to soil
         # temperature assuming a linear relationship (this is equivalent as the calculation of "growth degree-days):
-        temperature_time_adjustment = self.temperature_modification(process_at_T_ref=self.process_at_T_ref,
-                                                                    soil_temperature=apex.soil_temperature,
-                                                                    T_ref=self.T_ref, A=self.A, B=self.B, C=self.C)
+        temperature_time_adjustment = apex.temperature_modification
 
         # CASE 1: THE APEX CORRESPONDS TO THE PRIMORDIUM OF A POTENTIALLY EMERGING SEMINAL OR ADVENTITIOUS ROOT
         # -----------------------------------------------------------------------------------------------------
@@ -414,6 +419,7 @@ class RootGrowthModelCoupled(*inheriting):
                 " and the radius", radius, "and the elongation time", elongation_time_in_seconds)
         return new_length
 
+
     # Function for calculating the amount of C to be used in neighbouring elements for sustaining root elongation:
     def calculating_supply_for_elongation(self, element):
         """
@@ -548,9 +554,7 @@ class RootGrowthModelCoupled(*inheriting):
 
         # We calculate a coefficient that will modify the different "ages" experienced by roots according to soil
         # temperature assuming a linear relationship (this is equivalent as the calculation of "growth degree-days):
-        temperature_time_adjustment = self.temperature_modification(process_at_T_ref=self.process_at_T_ref,
-                                                                    soil_temperature=apex.soil_temperature,
-                                                                    T_ref=self.T_ref, A=self.A, B=self.B, C=self.C)
+        temperature_time_adjustment = apex.temperature_modification
 
         # OPERATING PRIMORDIUM FORMATION:
         # --------------------------------
@@ -705,9 +709,8 @@ class RootGrowthModelCoupled(*inheriting):
             
             # We calculate a coefficient that will modify the rate of thickening according to soil temperature
             # assuming a linear relationship (this is equivalent as the calculation of "growth degree-days):
-            thickening_rate = thickening_rate * self.temperature_modification(process_at_T_ref=self.process_at_T_ref,
-                                                                    soil_temperature=segment.soil_temperature,
-                                                                    T_ref=self.T_ref, A=self.A, B=self.B, C=self.C)
+            thickening_rate = thickening_rate * segment.temperature_modification
+
             segment.theoretical_radius = segment.radius * (1 + thickening_rate * self.time_step_in_seconds)
             if segment.theoretical_radius > self.nodule_max_radius:
                 segment.potential_radius = self.nodule_max_radius
@@ -738,9 +741,7 @@ class RootGrowthModelCoupled(*inheriting):
 
         # We calculate a coefficient that will modify the different "ages" experienced by roots according to soil
         # temperature assuming a linear relationship (this is equivalent as the calculation of "growth degree-days):
-        temperature_time_adjustment = self.temperature_modification(process_at_T_ref=self.process_at_T_ref,
-                                                                    soil_temperature=segment.soil_temperature,
-                                                                    T_ref=self.T_ref, A=self.A, B=self.B, C=self.C)
+        temperature_time_adjustment = segment.temperature_modification
 
         # CHECKING WHETHER THE APEX OF THE ROOT AXIS HAS STOPPED GROWING:
         # ---------------------------------------------------------------
@@ -829,9 +830,8 @@ class RootGrowthModelCoupled(*inheriting):
 
                 # We calculate a coefficient that will modify the rate of thickening according to soil temperature
                 # assuming a linear relationship (this is equivalent as the calculation of "growth degree-days):
-                thickening_rate = thickening_rate * self.temperature_modification(process_at_T_ref=self.process_at_T_ref,
-                                                                    soil_temperature=segment.soil_temperature,
-                                                                    T_ref=self.T_ref, A=self.A, B=self.B, C=self.C)
+                thickening_rate = thickening_rate * segment.temperature_modification
+
                 # The maximal possible new radius according to this regulation is therefore:
                 new_radius_max = (1 + thickening_rate * self.time_step_in_seconds) * segment.initial_radius
                 # If the potential new radius is higher than the maximal new radius:
@@ -905,27 +905,30 @@ class RootGrowthModelCoupled(*inheriting):
         # PROCEEDING TO ACTUAL GROWTH:
         # -----------------------------
 
+        # Repeated calls
+        g = self.g
+        volume_from_radius_and_length = self.volume_from_radius_and_length
+
         self.step_elongating_elements = []
 
         # We have to cover each vertex from the apices up to the base one time:
-        root_gen = self.g.component_roots_at_scale_iter(self.g.root, scale=1)
+        root_gen = g.component_roots_at_scale_iter(g.root, scale=1)
         root = next(root_gen)
         # We cover all the vertices in the MTG, from the tips to the base:
-        for vid in post_order(self.g, root):
+        for vid in post_order(g, root):
 
             # n represents the current root element:
-            n = self.g.node(vid)
+            n = g.node(vid)
 
             # We calculate a coefficient that will modify the different "ages" experienced by roots according to soil
             # temperature assuming a linear relationship (this is equivalent as the calculation of "growth degree-days):
-            temperature_time_adjustment = self.temperature_modification(process_at_T_ref=self.process_at_T_ref,
-                                                                    soil_temperature=n.soil_temperature,
-                                                                    T_ref=self.T_ref, A=self.A, B=self.B, C=self.C)
+            temperature_time_adjustment = n.temperature_modification
     
             # AVOIDANCE OF UNWANTED CASES:
             # -----------------------------
             # We make sure that the element is not dead:
-            if n.type == "Dead" or n.type == "Just_dead" or n.type == "Support_for_seminal_root" or n.type == "Support_for_adventitious_root":
+            n_type = n.type
+            if n_type in ("Dead", "Just_dead", "Support_for_seminal_root", "Support_for_adventitious_root"):
                 # In such case, we just pass to the next element in the iteration:
                 continue
 
@@ -939,9 +942,9 @@ class RootGrowthModelCoupled(*inheriting):
             # WARNING: All growth related variables should have been initialized by another module at the beginning of the time step!!!
 
             # We calculate the initial volume of the element:
-            initial_volume = self.volume_from_radius_and_length(n, n.initial_radius, n.initial_length)
+            initial_volume = volume_from_radius_and_length(n, n.initial_radius, n.initial_length)
             # We calculate the potential volume of the element based on the potential radius and potential length:
-            potential_volume = self.volume_from_radius_and_length(n, n.potential_radius, n.potential_length)
+            potential_volume = volume_from_radius_and_length(n, n.potential_radius, n.potential_length)
             # We calculate the number of moles of hexose required for growth, including the respiration cost according to
             # the yield growth included in the model of Thornley and Cannell (2000), where root_tissue_density is the dry structural
             # weight per volume (g m-3) and struct_mass_C_content is the amount of C per gram of dry structural mass (mol_C g-1):
@@ -1071,7 +1074,7 @@ class RootGrowthModelCoupled(*inheriting):
                     # Elongation is done up to the full potential:
                     n.length = n.potential_length
                 # The corresponding new volume is calculated:
-                volume_after_elongation = self.volume_from_radius_and_length(n, n.initial_radius, n.length)
+                volume_after_elongation = volume_from_radius_and_length(n, n.initial_radius, n.length)
 
                 # We suppose that carbon is taken equally from hexose and amino acids since we supperimpose many metabolic processes here
                 hexose_consumption_ratio_in_C = 6 * (hexose_available_for_elongation) / (self.r_C_AA * amino_acids_possibly_required_for_elongation  
@@ -1102,7 +1105,7 @@ class RootGrowthModelCoupled(*inheriting):
                     # We cover each of the elements that have provided hexose for sustaining the elongation of element n:
                     for i in range(0, len(list_of_elongation_supporting_elements)):
                         index = list_of_elongation_supporting_elements[i]
-                        supplying_element = self.g.node(index)
+                        supplying_element = g.node(index)
                         # We define the actual contribution of the current element based on total hexose consumption by growth
                         # of element n and the relative contribution of the current element to the pool of the potentially available hexose:
                         if n.hexose_possibly_required_for_elongation > 0:
@@ -1147,7 +1150,7 @@ class RootGrowthModelCoupled(*inheriting):
                 # We calculate the maximal possible volume based on the volume of the new cylinder after elongation
                 # and the increase in volume that could be achieved by consuming the first limiting factor between hexose and amino acids:
 
-                volume_max = self.volume_from_radius_and_length(n, n.initial_radius, n.length) + min(possible_radial_increase_in_volume_C, possible_radial_increase_in_volume_N)
+                volume_max = volume_from_radius_and_length(n, n.initial_radius, n.length) + min(possible_radial_increase_in_volume_C, possible_radial_increase_in_volume_N)
                 # We then calculate the corresponding new possible radius corresponding to this maximum volume:
                 if n.type == "Root_nodule":
                     # If the element corresponds to a nodule, then it we calculate the radius of a theoretical sphere:
@@ -1172,8 +1175,8 @@ class RootGrowthModelCoupled(*inheriting):
                 else:
                     # Otherwise, radial growth is done up to the full potential and the remaining hexose is calculated:
                     n.radius = n.potential_radius
-                    net_increase_in_volume = self.volume_from_radius_and_length(n, n.radius, n.length) \
-                        - self.volume_from_radius_and_length(n, n.initial_radius, n.length)
+                    net_increase_in_volume = volume_from_radius_and_length(n, n.radius, n.length) \
+                        - volume_from_radius_and_length(n, n.initial_radius, n.length)
                     # net_increase_in_volume = pi * (n.radius ** 2 - n.initial_radius ** 2) * n.length
                     # We then calculate the remaining amount of hexose after thickening:
 
@@ -1215,8 +1218,8 @@ class RootGrowthModelCoupled(*inheriting):
                     (hexose_actual_contribution_to_thickening * fraction_of_available_hexose_in_the_element) \
                     * (1 - self.yield_growth) * 6.
                 if n.type == "Root_nodule":
-                    index_parent = self.g.Father(n.index(), EdgeType='+')
-                    parent = self.g.node(index_parent)
+                    index_parent = g.Father(n.index(), EdgeType='+')
+                    parent = g.node(index_parent)
                     fraction_of_available_hexose_in_the_element = \
                         (parent.C_hexose_root * parent.initial_struct_mass) / hexose_available_for_thickening
                     # The amount of hexose used for growth in this element is increased:
@@ -1241,7 +1244,7 @@ class RootGrowthModelCoupled(*inheriting):
             # RECORDING THE ACTUAL STRUCTURAL MODIFICATIONS:
             # -----------------------------------------------
             # The new volume of the element is automatically calculated
-            n.volume = self.volume_from_radius_and_length(n, n.radius, n.length)
+            n.volume = volume_from_radius_and_length(n, n.radius, n.length)
             # The new dry structural struct_mass of the element is calculated from its new volume:
             n.struct_mass = n.volume * n.root_tissue_density
             n.struct_mass_produced = (n.volume - initial_volume) * n.root_tissue_density
@@ -1300,9 +1303,7 @@ class RootGrowthModelCoupled(*inheriting):
                 n.dist_to_ramif += n.actual_elongation
 
 
-    @postsegmentation
-    @state
-    def root_hairs_dynamics(self):
+    def root_hairs_dynamics(self, segment):
         
         """
         This function computes the evolution of the density and average length of root hairs along each root,
@@ -1315,18 +1316,13 @@ class RootGrowthModelCoupled(*inheriting):
 
         #  TODO FOR TRISTAN: In a second step, consider playing on the density / max. length of root hairs depending on the availability of N in the soil (if relevant)?
 
-        # We cover all the vertices in the MTG:
-        for vid in self.g.vertices_iter(scale=1):
-            # n represents the vertex:
-            n = self.g.node(vid)
+        # Repeated calls
+        n = segment
 
-            # First, we ensure that the element has a positive length:
-            if n.length <= 0:
-                continue
+        # We also exclude nodules and dead elements from this computation:
+        n_type = n.type
+        if n_type not in ("Just_dead", "Dead", "Nodule") and n.distance_from_tip > self.growing_zone_factor * n.radius:
 
-            # We also exclude nodules and dead elements from this computation:
-            if n.type == "Just_dead" or n.type == "Dead" or n.type == "Nodule":
-                continue
 
             # # TODO: Check the consequences of avoiding apex in root hairs dynamics!
             # # WE ALSO AVOID ROOT APICES - EVEN IF IN THEORY ROOT HAIRS MAY ALSO APPEAR ON THEM:
@@ -1334,11 +1330,10 @@ class RootGrowthModelCoupled(*inheriting):
             #     continue
             # # Even if root hairs should have already emerge on that root apex, they will appear in the next step (or in a few steps)
             # # when the element becomes a segment.
-
+            
             # We calculate the equivalent of a thermal time for the current time step:
-            temperature_time_adjustment = max(1e-3, self.temperature_modification(process_at_T_ref=self.process_at_T_ref,
-                                                                    soil_temperature=n.soil_temperature,
-                                                                    T_ref=self.T_ref, A=self.A, B=self.B, C=self.C)) # 1e-3 to avoid division by 0 bellow
+            temperature_time_adjustment = max(1e-3, n.temperature_modification) # 1e-3 to avoid division by 0 bellow
+
             elapsed_thermal_time = self.time_step_in_seconds * temperature_time_adjustment
 
             # We keep in memory the initial total mass of root hairs (possibly including dead hairs):
@@ -1346,11 +1341,7 @@ class RootGrowthModelCoupled(*inheriting):
 
             # We calculate the total number of (newly formed) root hairs (if any) and update their age:
             # ------------------------------------------------------------------------------------------
-            # CASE 1 - If the current element is completely included within the actual growing zone of the root at the root
-            # tip, the root hairs cannot have formed yet:
-            if n.distance_from_tip <= self.growing_zone_factor * n.radius:
-                # We stop here with the calculations and move to the next element:
-                continue
+            
             # CASE 2 - If all root hairs have already been formed:
             if n.all_root_hairs_formed:
                 # Then we simply increase the time since root hairs emergence started:
@@ -1592,7 +1583,9 @@ class RootGrowthModelCoupled(*inheriting):
                                                  amino_acids_consumption_by_growth_amount=0.,
                                                  amino_acids_consumption_by_growth=0.,
                                                  amino_acids_possibly_required_for_elongation=0.,
-                                                 amino_acids_growth_demand=0.
+                                                 amino_acids_growth_demand=0.,
+                                                 temperature_modification=0.
+                                                 
                                                  )
             
             return new_child
@@ -1682,7 +1675,8 @@ class RootGrowthModelCoupled(*inheriting):
                                                  amino_acids_consumption_by_growth_amount=0.,
                                                  amino_acids_consumption_by_growth=0.,
                                                  amino_acids_possibly_required_for_elongation=0.,
-                                                 amino_acids_growth_demand=0.
+                                                 amino_acids_growth_demand=0.,
+                                                 temperature_modification=mother_element.temperature_modification
                                                  )
             
             return new_child
