@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import numpy as np
 from openalea.metafspm.component_factory import *
 from openalea.metafspm.component import declare
 
@@ -173,7 +174,7 @@ class RootCNUnified(*inheriting):
                                                                 B=self.phloem_unloading_B,
                                                                 C=self.phloem_unloading_C)
             
-            return max(2. * max_unloading_rate * C_sucrose_root * phloem_exchange_surface / (
+            return np.maximum(2. * max_unloading_rate * C_sucrose_root * phloem_exchange_surface / (
                             self.Km_unloading + C_sucrose_root), 0) 
     
 
@@ -188,7 +189,7 @@ class RootCNUnified(*inheriting):
                                                                     B=self.passive_processes_B,
                                                                     C=self.passive_processes_C)
 
-        return diffusion_phloem * (max(0, (phloem_AA * living_struct_mass) / phloem_volume) - max(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
+        return diffusion_phloem * (np.maximum(0, (phloem_AA * living_struct_mass) / phloem_volume) - max(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
 
 
     @rate
@@ -202,7 +203,7 @@ class RootCNUnified(*inheriting):
                                                             B=self.active_processes_B,
                                                             C=self.active_processes_C)
         
-        return min(vmax_unloading_AA_phloem * Cv_AA_phloem * phloem_exchange_surface / (
+        return np.maximum(vmax_unloading_AA_phloem * Cv_AA_phloem * phloem_exchange_surface / (
                     self.km_unloading_AA_phloem + Cv_AA_phloem), phloem_AA * living_struct_mass / 2)
 
 
