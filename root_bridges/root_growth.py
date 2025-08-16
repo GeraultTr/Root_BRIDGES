@@ -69,7 +69,7 @@ class RootGrowthModelCoupled(*inheriting):
             self.adventitous_primordia_to_emerge = {}
             for vid in self.vertices:
                 n = self.g.node(vid)
-                if n.type == "Adventitious_root_before_emergence":
+                if n.type == self.type_Adventitious_root_before_emergence:
                     self.adventitous_primordia_to_emerge[vid] = n.emergence_delay_in_thermal_time
             
             self.next_adventitious_primordium =  min(self.adventitous_primordia_to_emerge, key=self.adventitous_primordia_to_emerge.get)
@@ -128,9 +128,9 @@ class RootGrowthModelCoupled(*inheriting):
             # Store temperature modifications for further calls
             n.temperature_modification = temperature_modification(n.soil_temperature)
 
-            if n.label == "Apex":
+            if n.label == self.label_Apex:
                 potential_apex_development(apex=n)
-            elif n.label == "Segment":
+            elif n.label == self.label_Segment:
                 potential_segment_development(segment=n)
 
 
@@ -164,9 +164,9 @@ class RootGrowthModelCoupled(*inheriting):
         # CASE 1: THE APEX CORRESPONDS TO THE PRIMORDIUM OF A POTENTIALLY EMERGING SEMINAL OR ADVENTITIOUS ROOT
         # -----------------------------------------------------------------------------------------------------
         # If the seminal root has not emerged yet:
-        if apex.type == "Seminal_root_before_emergence" or apex.type == "Adventitious_root_before_emergence":
+        if apex.type == self.type_Seminal_root_before_emergence or apex.type == self.type_Adventitious_root_before_emergence:
             # Handle special delay management when adventitious emergence is controled by the shoot
-            if apex.type == "Adventitious_root_before_emergence" and self.synchronize_adventitious_emergence:
+            if apex.type == self.type_Adventitious_root_before_emergence and self.synchronize_adventitious_emergence:
                 condition_for_axis_emergence = apex.index() == self.next_adventitious_primordium and len(self.props["adventitious_to_emerge"][1]) > 0
                 if condition_for_axis_emergence:
                     apex.thermal_time_since_primordium_formation = 0
@@ -198,7 +198,7 @@ class RootGrowthModelCoupled(*inheriting):
                 # Last, if ArchiSimple has been chosen as the growth model:
                 if self.simple_growth_duration:
                     # Then we automatically allow the root to emerge, without consideration of C limitation:
-                    apex.type = "Normal_root_after_emergence"
+                    apex.type = self.type_Normal_root_after_emergence
             # In any case, the time since primordium formation is incremented, as usual:
             apex.actual_time_since_primordium_formation += self.time_step_in_seconds
             apex.thermal_time_since_primordium_formation += self.time_step_in_seconds * temperature_time_adjustment
@@ -209,7 +209,7 @@ class RootGrowthModelCoupled(*inheriting):
 
         # CASE 2: THE APEX CORRESPONDS TO THE PRIMORDIUM OF A POTENTIALLY EMERGING NORMAL LATERAL ROOT
         # ---------------------------------------------------------------------------------------------
-        if apex.type == "Normal_root_before_emergence":
+        if apex.type == self.type_Normal_root_before_emergence:
             # If the time since primordium formation is higher than the delay of emergence:
             if apex.thermal_time_since_primordium_formation + self.time_step_in_seconds * temperature_time_adjustment > self.emergence_delay:
                 # The time since primordium formation is incremented:
@@ -232,7 +232,7 @@ class RootGrowthModelCoupled(*inheriting):
 
                 # If ArchiSimple has been chosen as the growth model:
                 if self.simple_growth_duration:
-                    apex.type = "Normal_root_after_emergence"
+                    apex.type = self.type_Normal_root_after_emergence
                     new_apex.append(apex)
                     # And the function returns this new apex and stops here:
                     return new_apex
@@ -284,12 +284,12 @@ class RootGrowthModelCoupled(*inheriting):
             # IF THE APEX HAS NOT REACHED ITS LIFE DURATION:
             if apex.thermal_time_since_growth_stopped + self.time_step_in_seconds * temperature_time_adjustment < apex.life_duration:
                 # IF THE APEX HAS ALREADY BEEN STOPPED AT A PREVIOUS TIME STEP:
-                if apex.type == "Stopped" or apex.type == "Just_stopped":
+                if apex.type == self.type_Stopped or apex.type == self.type_Just_stopped:
                     # The time since growth stopped is simply increased by one time step:
                     apex.actual_time_since_growth_stopped += self.time_step_in_seconds
                     apex.thermal_time_since_growth_stopped += self.time_step_in_seconds * temperature_time_adjustment
                     # The type is (re)declared "Stopped":
-                    apex.type = "Stopped"
+                    apex.type = self.type_Stopped
                     # The times are incremented:
                     apex.actual_time_since_primordium_formation += self.time_step_in_seconds
                     apex.thermal_time_since_primordium_formation += self.time_step_in_seconds * temperature_time_adjustment
@@ -305,7 +305,7 @@ class RootGrowthModelCoupled(*inheriting):
                 # OTHERWISE, THE APEX HAS TO STOP DURING THIS TIME STEP:
                 else:
                     # The type is declared "Just stopped":
-                    apex.type = "Just_stopped"
+                    apex.type = self.type_Just_stopped
                     # Then the exact time since growth stopped is calculated:
                     apex.thermal_time_since_growth_stopped = apex.thermal_time_since_emergence \
                                                              + self.time_step_in_seconds * temperature_time_adjustment \
@@ -342,9 +342,9 @@ class RootGrowthModelCoupled(*inheriting):
             # OTHERWISE, THE APEX MUST BE DEAD:
             else:
                 # IF THE APEX HAS ALREADY DIED AT A PREVIOUS TIME STEP:
-                if apex.type == "Dead" or apex.type == "Just_dead":
+                if apex.type == self.type_Dead or apex.type == self.type_Just_dead:
                     # The type is (re)declared "Dead":
-                    apex.type = "Dead"
+                    apex.type = self.type_Dead
                     # And the times are simply incremented:
                     apex.actual_time_since_primordium_formation += self.time_step_in_seconds
                     apex.actual_time_since_emergence += self.time_step_in_seconds
@@ -363,7 +363,7 @@ class RootGrowthModelCoupled(*inheriting):
                 # OTHERWISE, THE APEX HAS TO DIE DURING THIS TIME STEP:
                 else:
                     # Then the apex is declared "Just dead":
-                    apex.type = "Just_dead"
+                    apex.type = self.type_Just_dead
                     # The exact time since the apex died is calculated:
                     apex.thermal_time_since_death = apex.thermal_time_since_growth_stopped + self.time_step_in_seconds * temperature_time_adjustment - apex.life_duration
                     apex.actual_time_since_death = apex.thermal_time_since_death / temperature_time_adjustment
@@ -625,8 +625,8 @@ class RootGrowthModelCoupled(*inheriting):
                 actual_time_since_formation = 0.
 
             # And we add the primordium of a possible new lateral root:
-            ramif = self.ADDING_A_CHILD(mother_element=apex, edge_type='+', label='Apex',
-                                        type='Normal_root_before_emergence',
+            ramif = self.ADDING_A_CHILD(mother_element=apex, edge_type='+', label=self.label_Apex,
+                                        type=self.type_Normal_root_before_emergence,
                                         root_order=apex.root_order + 1,
                                         angle_down=primordium_angle_down,
                                         angle_roll=primordium_angle_roll,
@@ -687,7 +687,7 @@ class RootGrowthModelCoupled(*inheriting):
         # NOTE: a nodule is considered here as a tumor which grows radially by feeding from root hexose, but does not produce
         # new root axes.
 
-        if segment.type == "Root_nodule":
+        if segment.type == self.type_Root_nodule:
             # We consider the amount of hexose available in the nodule AND in the parent segment
             # (EXCLUDING the amount of hexose in living rot hairs):
             # TODO: Should the C from root hairs be used for helping nodules to grow?
@@ -750,15 +750,15 @@ class RootGrowthModelCoupled(*inheriting):
         index_apex = self.g.Axis(segment.index())[-1]
         apex = self.g.node(index_apex)
         # print("For segment", segment.index(), "the terminal index is", index_apex, "and has the type", apex.label)
-        if apex.label != "Apex":
+        if apex.label != self.label_Apex:
             print("ERROR: when trying to access the terminal apex of the axis of the segment", segment.index(),
                 "we obtained the element", index_apex," that is a", apex.label, "!!!")
             
         # Depending on the type of the apex, we adjust the type of the segment on the same axis:
-        if apex.type == "Just_stopped":
-            segment.type = "Just_stopped"
-        elif apex.type == "Stopped":
-            segment.type = "Stopped"
+        if apex.type == self.type_Just_stopped:
+            segment.type = self.type_Just_stopped
+        elif apex.type == self.type_Stopped:
+            segment.type = self.type_Stopped
 
         # CHECKING POSSIBLE ROOT SEGMENT DEATH:
         # -------------------------------------
@@ -779,14 +779,14 @@ class RootGrowthModelCoupled(*inheriting):
                 # son_section = child.radius * child.radius * pi
             # Otherwise if the child is the element of a lateral root AND if this lateral root has already emerged
             # AND the lateral element is not a nodule:
-            elif child.edge_type == '+' and child.length > 0. and child.type != "Root_nodule":
+            elif child.edge_type == '+' and child.length > 0. and child.type != self.type_Root_nodule:
                 # We add the POTENTIAL section of this child to a sum of lateral sections:
                 sum_of_lateral_sections += child.theoretical_radius ** 2 * pi
                 # # We add the section of this child to a sum of lateral sections:
                 # sum_of_lateral_sections += child.radius ** 2 * pi
 
             # If this child has just died or was already dead:
-            if child.type == "Just_dead" or child.type == "Dead":
+            if child.type == self.type_Just_dead or child.type == self.type_Dead:
                 # Then we add one dead child to the death count:
                 death_count += 1
                 # And we record the exact time since death:
@@ -795,12 +795,12 @@ class RootGrowthModelCoupled(*inheriting):
         # If each child in the list of children has been recognized as dead or just dead:
         if death_count == number_of_actual_children:
             # If the investigated segment was already declared dead at the previous time step:
-            if segment.type == "Just_dead" or segment.type == "Dead":
+            if segment.type == self.type_Just_dead or segment.type == self.type_Dead:
                 # Then we transform its status into "Dead"
-                segment.type = "Dead"
+                segment.type = self.type_Dead
             else:
                 # Then the segment has to die:
-                segment.type = "Just_dead"
+                segment.type = self.type_Just_dead
         # Otherwise, at least one of the children axis is not dead, so the father segment should not be dead
 
         # REGULATION OF RADIAL GROWTH BY AVAILABLE CARBON:
@@ -842,7 +842,7 @@ class RootGrowthModelCoupled(*inheriting):
                 else:
                     segment.potential_radius = segment.theoretical_radius
             # And if the segment corresponds to one of the elements of length 0 supporting one seminal or adventitious root:
-            if segment.type == "Support_for_seminal_root" or segment.type == "Support_for_adventitious_root":
+            if segment.type == self.type_Support_for_seminal_root or segment.type == self.type_Support_for_adventitious_root:
                 # Then the radius is directly increased, as this element will not be considered in the function calculating actual growth:
                 segment.radius = segment.potential_radius
 
@@ -857,13 +857,13 @@ class RootGrowthModelCoupled(*inheriting):
         segment.thermal_time_since_emergence += self.time_step_in_seconds * temperature_time_adjustment
         segment.thermal_time_since_cells_formation += self.time_step_in_seconds * temperature_time_adjustment
 
-        if segment.type == "Just_stopped":
+        if segment.type == self.type_Just_stopped:
             segment.actual_time_since_growth_stopped = apex.actual_time_since_growth_stopped
             segment.thermal_time_since_growth_stopped = apex.actual_time_since_growth_stopped * temperature_time_adjustment
-        if segment.type == "Stopped":
+        if segment.type == self.type_Stopped:
             segment.actual_time_since_growth_stopped += self.time_step_in_seconds
             segment.thermal_time_since_growth_stopped += self.time_step_in_seconds * temperature_time_adjustment
-        if segment.type == "Just_dead":
+        if segment.type == self.type_Just_dead:
             segment.actual_time_since_growth_stopped += self.time_step_in_seconds
             segment.thermal_time_since_growth_stopped += self.time_step_in_seconds * temperature_time_adjustment
             # AVOIDING PROBLEMS - We check that the list of times_since_death is not empty:
@@ -872,7 +872,7 @@ class RootGrowthModelCoupled(*inheriting):
             else:
                 segment.actual_time_since_death = 0.
             segment.thermal_time_since_death = segment.actual_time_since_death * temperature_time_adjustment
-        if segment.type == "Dead":
+        if segment.type == self.type_Dead:
             segment.actual_time_since_growth_stopped += self.time_step_in_seconds
             segment.thermal_time_since_growth_stopped += self.time_step_in_seconds * temperature_time_adjustment
             segment.actual_time_since_death += self.time_step_in_seconds
@@ -928,7 +928,7 @@ class RootGrowthModelCoupled(*inheriting):
             # -----------------------------
             # We make sure that the element is not dead:
             n_type = n.type
-            if n_type in ("Dead", "Just_dead", "Support_for_seminal_root", "Support_for_adventitious_root"):
+            if n_type in (self.type_Dead, self.type_Just_dead, self.type_Support_for_seminal_root, self.type_Support_for_adventitious_root):
                 # In such case, we just pass to the next element in the iteration:
                 continue
 
@@ -1152,7 +1152,7 @@ class RootGrowthModelCoupled(*inheriting):
 
                 volume_max = volume_from_radius_and_length(n, n.initial_radius, n.length) + min(possible_radial_increase_in_volume_C, possible_radial_increase_in_volume_N)
                 # We then calculate the corresponding new possible radius corresponding to this maximum volume:
-                if n.type == "Root_nodule":
+                if n.type == self.type_Root_nodule:
                     # If the element corresponds to a nodule, then it we calculate the radius of a theoretical sphere:
                     possible_radius = (3. / (4. * pi)) ** (1. / 3.)
                 else:
@@ -1217,7 +1217,7 @@ class RootGrowthModelCoupled(*inheriting):
                 n.resp_growth += \
                     (hexose_actual_contribution_to_thickening * fraction_of_available_hexose_in_the_element) \
                     * (1 - self.yield_growth) * 6.
-                if n.type == "Root_nodule":
+                if n.type == self.type_Root_nodule:
                     index_parent = g.Father(n.index(), EdgeType='+')
                     parent = g.node(index_parent)
                     fraction_of_available_hexose_in_the_element = \
@@ -1269,11 +1269,11 @@ class RootGrowthModelCoupled(*inheriting):
             # If there has been an actual elongation:
             if n.length > n.initial_length:
                 # If the elongated apex corresponded to any primordium that has been allowed to emerge:
-                if n.type == "Seminal_root_before_emergence" \
-                        or n.type == "Adventitious_root_before_emergence" \
-                        or n.type == "Normal_root_before_emergence":
+                if n.type == self.type_Seminal_root_before_emergence \
+                        or n.type == self.type_Adventitious_root_before_emergence \
+                        or n.type == self.type_Normal_root_before_emergence:
                     # We now consider the apex to have emerged:
-                    n.type = "Normal_root_after_emergence"
+                    n.type = self.type_Normal_root_after_emergence
                     # The exact time since emergence is recorded:
                     n.thermal_time_since_emergence = n.thermal_potential_time_since_emergence
                     n.actual_time_since_emergence = n.thermal_time_since_emergence / temperature_time_adjustment
@@ -1283,7 +1283,7 @@ class RootGrowthModelCoupled(*inheriting):
                     # Note: at this stage, no sugar has been allocated to the emerging primordium itself!
                     # if n.type == "Adventitious_root_before_emergence":
                     #     print("> A new adventitious root has emerged, starting from element", n.index(), "!")
-                elif n.type == "Normal_root_after_emergence":
+                elif n.type == self.type_Normal_root_after_emergence:
                     # The actual elongation rate is calculated:
                     n.actual_elongation = n.length - n.initial_length
                     n.actual_elongation_rate = n.actual_elongation / self.time_step_in_seconds
@@ -1321,7 +1321,7 @@ class RootGrowthModelCoupled(*inheriting):
 
         # We also exclude nodules and dead elements from this computation:
         n_type = n.type
-        if n_type not in ("Just_dead", "Dead", "Nodule") and n.distance_from_tip > self.growing_zone_factor * n.radius:
+        if n_type not in (self.type_Just_dead, self.type_Dead, self.type_Root_nodule) and n.distance_from_tip > self.growing_zone_factor * n.radius:
 
 
             # # TODO: Check the consequences of avoiding apex in root hairs dynamics!
@@ -1474,7 +1474,7 @@ class RootGrowthModelCoupled(*inheriting):
             n.resp_growth += hexose_consumption * 6. * (1 - self.yield_growth)
 
     # Adding a new root element with pre-defined properties:
-    def ADDING_A_CHILD(self, mother_element, edge_type='+', label='Apex', type='Normal_root_before_emergence',
+    def ADDING_A_CHILD(self, mother_element, edge_type='+', label=2, type=6,
                        root_order=1, angle_down=45., angle_roll=0., length=0., radius=0.,
                        identical_properties=True, nil_properties=False):
         """

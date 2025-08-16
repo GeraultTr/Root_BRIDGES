@@ -130,7 +130,7 @@ class RootCNUnified(*inheriting):
         """
 
         # We consider all the cases where no net exchange should be allowed:
-        if length <= 0. or type == "Just_dead" or type == "Dead":
+        if length <= 0. or type == self.type_Just_dead or type == self.type_Dead:
             return 0
 
         else:
@@ -161,7 +161,7 @@ class RootCNUnified(*inheriting):
         Superimposing original, staying with a massic concentration gradient as fist approximation to avoid changing parameters
         """
         # We consider all the cases where no net exchange should be allowed:
-        if length <= 0. or phloem_exchange_surface <= 0. or type == "Just_dead" or type == "Dead":
+        if length <= 0. or phloem_exchange_surface <= 0. or type == self.type_Just_dead or type == self.type_Dead:
             return 0
 
         else:
