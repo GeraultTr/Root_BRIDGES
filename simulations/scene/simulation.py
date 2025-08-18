@@ -69,7 +69,7 @@ if __name__ == "__main__":
             play_Orchestra(scene_name=scenario_name, output_folder=custom_output_folder, plant_models=[RootBRIDGES], plant_scenarios=[scenario], 
                                 soil_model=RhizoSoil, soil_scenario=scenario,
                                 translator_path=root_bridges.__path__[0],
-                                logger_class=Logger, log_settings=Logger.heavy_log,
+                                logger_class=Logger, log_settings=Logger.heavy_log, heavy_log_period=1,
                                 scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density, row_spacing=row_spacing,
                                 time_step=3600, n_iterations=24*80)
             
