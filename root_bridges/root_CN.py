@@ -131,53 +131,45 @@ class RootCNUnified(*inheriting):
         Superimposing original, staying with a massic concentration gradient as fist approximation to avoid changing parameters
         """
 
-        # We consider all the cases where no net exchange should be allowed:
-        if length <= 0. or type == self.type_Just_dead or type == self.type_Dead:
-            return 0
+        Cv_sucrose_root = C_sucrose_root * living_struct_mass / phloem_volume
+        Cv_hexose_root = C_hexose_root * living_struct_mass / symplasmic_volume
 
-        else:
-            Cv_sucrose_root = C_sucrose_root * living_struct_mass / phloem_volume
-            Cv_hexose_root = C_hexose_root * living_struct_mass / symplasmic_volume
-
-            # if Cv_sucrose_root <= Cv_hexose_root / 2:
-            #     print("sucrose limits", Cv_sucrose_root, Cv_hexose_root / 2., living_struct_mass, hexose_consumption_by_growth )
-            #     return 0
-            # else:
-            # print(phloem_volume, symplasmic_volume)
-            # print("gradient", Cv_sucrose_root,  Cv_hexose_root / 2., living_struct_mass, hexose_consumption_by_growth)
-            phloem_permeability = self.diffusion_phloem * (1 + hexose_consumption_by_growth /
-                                                                self.reference_rate_of_hexose_consumption_by_growth)
-
-            phloem_permeability *= self.temperature_modification(soil_temperature=soil_temperature,
-                                                                    T_ref=self.phloem_unloading_T_ref,
-                                                                    A=self.phloem_unloading_A,
-                                                                    B=self.phloem_unloading_B,
-                                                                    C=self.phloem_unloading_C)
-
-            return 2. * phloem_permeability * (Cv_sucrose_root - Cv_hexose_root / 2.) * phloem_exchange_surface
-
-    @rate
-    def _hexose_active_production_from_phloem(self, C_sucrose_root, length, phloem_exchange_surface,
-                                              hexose_consumption_by_growth, soil_temperature):
-        """
-        Superimposing original, staying with a massic concentration gradient as fist approximation to avoid changing parameters
-        """
-        # We consider all the cases where no net exchange should be allowed:
-        if length <= 0. or phloem_exchange_surface <= 0. or type == self.type_Just_dead or type == self.type_Dead:
-            return 0
-
-        else:
-            # Removed condition to limit based on deficit compared to RhizoDep
-            max_unloading_rate = 0 * self.max_unloading_rate * (1 + hexose_consumption_by_growth /
+        # if Cv_sucrose_root <= Cv_hexose_root / 2:
+        #     print("sucrose limits", Cv_sucrose_root, Cv_hexose_root / 2., living_struct_mass, hexose_consumption_by_growth )
+        #     return 0
+        # else:
+        # print(phloem_volume, symplasmic_volume)
+        # print("gradient", Cv_sucrose_root,  Cv_hexose_root / 2., living_struct_mass, hexose_consumption_by_growth)
+        phloem_permeability = self.diffusion_phloem * (1 + hexose_consumption_by_growth /
                                                             self.reference_rate_of_hexose_consumption_by_growth)
-            max_unloading_rate *= self.temperature_modification(soil_temperature=soil_temperature,
+
+        phloem_permeability *= self.temperature_modification(soil_temperature=soil_temperature,
                                                                 T_ref=self.phloem_unloading_T_ref,
                                                                 A=self.phloem_unloading_A,
                                                                 B=self.phloem_unloading_B,
                                                                 C=self.phloem_unloading_C)
-            
-            return np.maximum(2. * max_unloading_rate * C_sucrose_root * phloem_exchange_surface / (
-                            self.Km_unloading + C_sucrose_root), 0) 
+        
+        return np.where((length <= 0.) | (type == self.type_Just_dead) | (type == self.type_Dead), 0.,
+                        2. * phloem_permeability * (Cv_sucrose_root - Cv_hexose_root / 2.) * phloem_exchange_surface)
+
+    @rate
+    def _hexose_active_production_from_phloem(self, type, C_sucrose_root, length, phloem_exchange_surface,
+                                              hexose_consumption_by_growth, soil_temperature):
+        """
+        Superimposing original, staying with a massic concentration gradient as fist approximation to avoid changing parameters
+        """
+        # Removed condition to limit based on deficit compared to RhizoDep
+        max_unloading_rate = 0 * self.max_unloading_rate * (1 + hexose_consumption_by_growth /
+                                                        self.reference_rate_of_hexose_consumption_by_growth)
+        max_unloading_rate *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                            T_ref=self.phloem_unloading_T_ref,
+                                                            A=self.phloem_unloading_A,
+                                                            B=self.phloem_unloading_B,
+                                                            C=self.phloem_unloading_C)
+        
+        return np.where((length <= 0.) | (phloem_exchange_surface <= 0.) | (type == self.type_Just_dead) | (type == self.type_Dead), 0.,
+                        np.maximum(2. * max_unloading_rate * C_sucrose_root * phloem_exchange_surface / (
+                        self.Km_unloading + C_sucrose_root), 0))
     
 
     @rate
@@ -191,7 +183,7 @@ class RootCNUnified(*inheriting):
                                                                     B=self.passive_processes_B,
                                                                     C=self.passive_processes_C)
 
-        return diffusion_phloem * (np.maximum(0, (phloem_AA * living_struct_mass) / phloem_volume) - max(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
+        return diffusion_phloem * (np.maximum(0, (phloem_AA * living_struct_mass) / phloem_volume) - np.maximum(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
 
 
     @rate
@@ -212,12 +204,12 @@ class RootCNUnified(*inheriting):
     # @note CONCENTRATIONS BALANCE
 
     @state
-    def _C_hexose_root(self, vertex_index, C_hexose_root, living_struct_mass, hexose_exudation, hexose_uptake_from_soil,
+    def _C_hexose_root(self, C_hexose_root, living_struct_mass, hexose_exudation, hexose_uptake_from_soil,
                            mucilage_secretion, cells_release, maintenance_respiration,
                            hexose_consumption_by_growth, hexose_consumption_by_fungus, hexose_diffusion_from_phloem,
                            hexose_active_production_from_phloem, sucrose_loading_in_phloem,
                            hexose_mobilization_from_reserve, hexose_immobilization_as_reserve, deficit_hexose_root, 
-                           AA_synthesis, AA_catabolism, N_metabolic_respiration):
+                           AA_synthesis, AA_catabolism, N_metabolic_respiration) -> tuple[float, str, float]:
         """
         Added the following flows to the balance :
         - Amino acid synthesis hexose consumption
@@ -244,44 +236,36 @@ class RootCNUnified(*inheriting):
                 + AA_catabolism / self.r_hexose_AA
                 - N_metabolic_respiration / 6.)
         
-        if balance < 0.:
-            # print("C deficit!!")
-            # If a deficit is to be recorded, we set the concentration to 0 and record the deficit
-            deficit = - balance * living_struct_mass / self.time_step
-            self.props["deficit_hexose_root"][vertex_index] = deficit if deficit > 1e-20 else 0.
-            return 0.
-        else:
-            # Otherwise there is no deficit and we directly return the balance
-            self.props["deficit_hexose_root"][vertex_index] = 0.
-            return balance
+        deficit = - balance * living_struct_mass / self.time_step
+        deficit = np.where(deficit > 1e-20, deficit, 0.)
+        balance = np.maximum(balance, 0.)
+
+        return balance, 'deficit_hexose_root', deficit
+
         
     @state
-    def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
-                  amino_acids_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
+    def _AA(self, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+                  amino_acids_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA) -> tuple[float, str, float]:
         
-        if living_struct_mass > 0:
-            balance =  AA + (self.time_step / living_struct_mass) * (
-                    diffusion_AA_phloem
-                    + unloading_AA_phloem
-                    + import_AA
-                    - diffusion_AA_soil
-                    - export_AA
-                    + AA_synthesis
-                    - amino_acids_consumption_by_growth
-                    - storage_synthesis * self.r_AA_stor
-                    + storage_catabolism / self.r_AA_stor
-                    - AA_catabolism
-                    - deficit_AA)
-            if balance < 0.:
-                deficit = - balance * (living_struct_mass) / self.time_step
-                self.props["deficit_AA"][vertex_index] = deficit if deficit > 1e-20 else 0.
-                return 0.
-            else:
-                self.props["deficit_AA"][vertex_index] = 0.
-                return balance
+        balance =  AA + (self.time_step / living_struct_mass) * (
+                diffusion_AA_phloem
+                + unloading_AA_phloem
+                + import_AA
+                - diffusion_AA_soil
+                - export_AA
+                + AA_synthesis
+                - amino_acids_consumption_by_growth
+                - storage_synthesis * self.r_AA_stor
+                + storage_catabolism / self.r_AA_stor
+                - AA_catabolism
+                - deficit_AA)
+        
+        deficit = - balance * living_struct_mass / self.time_step
+        deficit = np.where(deficit > 1e-20, deficit, 0.)
+        balance = np.maximum(balance, 0.)
 
-        else:
-            return 0
+        return balance, 'deficit_AA', deficit
+
     
     @state
     def _C_solutes_phloem(self, C_sucrose_root, phloem_AA):

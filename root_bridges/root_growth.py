@@ -26,7 +26,7 @@ class RootGrowthModelCoupled(*inheriting):
     
     nitrate_transporters_affinity_factor: float = declare(default=1., unit="mol.s-1", unit_comment="of nitrates", description="nitrate_transporters_affinity_factor, introduced to account for NRT1 signalling function when going through LATS regime", 
                                                     min_value="", max_value="", value_comment="", references="Remans et al 2006", DOI="", 
-                                                    variable_type="input", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
+                                                    variable_type="input", by="model_nitrogen", state_variable_type="NonInertialIntensive", edit_by="user")
     adventitious_to_emerge: list = declare(default=None, unit="", unit_comment="", description="List of adventitous roots delays before emergence starting from current time step, length of list indicates the number to emerge", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="", 
                                                     variable_type="input", by="model_shoot", state_variable_type="descriptor", edit_by="user")
