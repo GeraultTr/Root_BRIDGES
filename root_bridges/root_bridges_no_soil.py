@@ -60,6 +60,8 @@ class RootBRIDGES(CompositeModel):
         else:
             self.root_growth = RootGrowthModelCoupled(g=None, time_step=time_step, **root_parameters)
         self.g_root = self.root_growth.g
+        mtg_to_arraydict(self.g_root, ignore=self.root_growth.descriptor)
+
         # We have to update the coordinates of the new / imported MTG for other model's initialization
         plot_mtg(self.g_root, position=self.coordinates, rotation=self.rotation)
         self.root_anatomy = RootAnatomy(self.g_root, time_step, **root_parameters)
@@ -70,7 +72,7 @@ class RootBRIDGES(CompositeModel):
         descriptors = []
         for c in components:
             descriptors += c.descriptor
-        descriptors.remove("vertex_index")
+        # descriptors.remove("vertex_index")
 
         # NOTE : Important that this type conversion occurs after initiation of the modules
         mtg_to_arraydict(self.g_root, ignore=descriptors)
@@ -142,7 +144,7 @@ class RootBRIDGES(CompositeModel):
         # Compute state variations for water and then carbon and nitrogen
         self.root_water()
         self.root_cn()
-
+        
         # Send plant status to soil and light models
         self.send_plant_status_to_environment()
 

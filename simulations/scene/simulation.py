@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     scene_xrange = 0.15
     scene_yrange = 0.15
-    sowing_density = 250
+    sowing_density = 50
     row_spacing = 0.15
     environment_models_number = 1
     subprocesses_number = int(max(scene_xrange * scene_yrange * sowing_density, 1)) + environment_models_number
