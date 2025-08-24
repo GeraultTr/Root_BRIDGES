@@ -95,11 +95,12 @@ class RootCNUnified(*inheriting):
         "solute_massic_concentration_prop": "C_sucrose_root",
         "conductive_element_volume_prop": "phloem_volume",
         "water_flux_prop": "axial_export_water_up_phloem",
-        "radial_solute_flux": lambda n: (- n.hexose_diffusion_from_phloem / 2.
-                                        - n.hexose_active_production_from_phloem / 2.
-                                        - n.phloem_hexose_exudation / 2.
-                                        + n.sucrose_loading_in_phloem
-                                        + n.phloem_hexose_uptake_from_soil / 2.),
+        "radial_solute_flux": lambda hexose_diffusion_from_phloem, hexose_active_production_from_phloem, phloem_hexose_exudation, sucrose_loading_in_phloem, phloem_hexose_uptake_from_soil : (
+                                        - hexose_diffusion_from_phloem / 2.
+                                        - hexose_active_production_from_phloem / 2.
+                                        - phloem_hexose_exudation / 2.
+                                        + sucrose_loading_in_phloem
+                                        + phloem_hexose_uptake_from_soil / 2.),
         "flux_shoot_boundary": lambda props: props["sucrose_input_rate"][1],
         "boundary_shoot_solute_concentration": lambda props: props["Cv_sucrose_phloem_collar"][1],
         "solute_flux_to_shoot": "sucrose_root_to_shoot_phloem",
