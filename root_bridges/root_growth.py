@@ -94,13 +94,8 @@ class RootGrowthModelCoupled(*inheriting):
         potential_segment_development = self.potential_segment_development
         temperature_modification = self.growth_temperature_modification
 
-        tot_prep = 0
-        tot_apex = 0
-        tot_segment = 0
-
         # We simulate the development of all apices and segments in the MTG:
         for vid in post_order2(g, 1):
-            t1 = time.time()
             n = g.node(vid)
 
             # Re-initializes different growth-related variables (e.g. potential growth variables).
@@ -129,11 +124,9 @@ class RootGrowthModelCoupled(*inheriting):
             n.theoretical_radius = n.radius
             n.initial_struct_mass = n.struct_mass
             n.initial_living_root_hairs_struct_mass = n.living_root_hairs_struct_mass
-            tot_prep += time.time() - t1
 
             
             if n.label == self.label_Apex:
-                t1 = time.time()
                 # Edge case because we assign soil states only to emerged elements
                 if n.length == 0.:
                     parent = g.parent(vid) if vid not in self.collar_children else 1
@@ -141,19 +134,13 @@ class RootGrowthModelCoupled(*inheriting):
                 # Store temperature modifications for further calls
                 n.temperature_modification = temperature_modification(n.soil_temperature)
                 potential_apex_development(apex=n)
-                tot_apex += time.time() - t1
             
 
             elif n.label == self.label_Segment:
-                t1 = time.time()
                 # Store temperature modifications for further calls
                 n.temperature_modification = temperature_modification(n.soil_temperature)
                 potential_segment_development(segment=n)
-                tot_segment += time.time() - t1
 
-        print("tot_prep", tot_prep)
-        print("tot_segment", tot_segment)
-        print("tot_apex", tot_apex)
 
     @potential
     @state
@@ -164,8 +151,9 @@ class RootGrowthModelCoupled(*inheriting):
         """
         # Repeated calls handle
         g = self.g
-        potential_apex_development = self.potential_apex_development
-        potential_segment_development = self.potential_segment_development
+        p = self.props
+        potential_apex_development = self.potential_apex_development_opt
+        potential_segment_development = self.potential_segment_development_opt
         temperature_modification_handle = self.growth_temperature_modification
 
         hexose_consumption_by_growth_amount = g.property("hexose_consumption_by_growth_amount")
@@ -193,18 +181,14 @@ class RootGrowthModelCoupled(*inheriting):
         initial_living_root_hairs_struct_mass = g.property("initial_living_root_hairs_struct_mass")
         living_root_hairs_struct_mass = g.property("living_root_hairs_struct_mass")
         label = g.property("label")
+        type = g.property("type")
         soil_temperature = g.property("soil_temperature")
         temperature_modification = g.property("temperature_modification")
 
-        collar_children = self.collar_children
-
-        tot_prep = 0
-        tot_apex = 0
-        tot_segment = 0
+        collar_children = set(self.collar_children)
 
         # We simulate the development of all apices and segments in the MTG:
         for v in post_order2(g, 1):
-            t1 = time.time()
 
             # Re-initializes different growth-related variables (e.g. potential growth variables).
 
@@ -231,31 +215,22 @@ class RootGrowthModelCoupled(*inheriting):
             theoretical_radius[v] = radius[v]
             initial_struct_mass[v] = struct_mass[v]
             initial_living_root_hairs_struct_mass[v] = living_root_hairs_struct_mass[v]
-            tot_prep += time.time() - t1
 
             n = g.node(v)
             if label[v] == self.label_Apex:
-                t1 = time.time()
                 # Edge case because we assign soil states only to emerged elements
                 if length[v] == 0.:
                     parent = g.parent(v) if v not in collar_children else 1
                     soil_temperature[v] = soil_temperature[parent]
                 # Store temperature modifications for further calls
                 temperature_modification[v] = temperature_modification_handle(soil_temperature[v])
-                potential_apex_development(apex=n)
-                tot_apex += time.time() - t1
+                potential_apex_development(p, v)
             
 
             elif label[v] == self.label_Segment:
-                t1 = time.time()
                 # Store temperature modifications for further calls
                 temperature_modification[v] = temperature_modification_handle(soil_temperature[v])
-                potential_segment_development(segment=n)
-                tot_segment += time.time() - t1
-
-        print("tot_prep", tot_prep)
-        print("tot_segment", tot_segment)
-        print("tot_apex", tot_apex)
+                potential_segment_development(p, v, type_handle=type)
 
 
     # Function calculating the potential development of an apex:
@@ -504,6 +479,256 @@ class RootGrowthModelCoupled(*inheriting):
                     new_apex.append(apex)
                     # And the function returns this new apex and stops here:
                     return new_apex
+                
+
+    # Function calculating the potential development of an apex:
+    def potential_apex_development_opt(self, p, v):
+        """
+        This function considers a root apex, i.e. the terminal root element of a root axis (including the primordium of a
+        root that has not emerged yet), and calculates its potential elongation, without actually elongating the apex or
+        forming any new root primordium in the standard case (only when ArchiSimple option is set to True). Aging of the
+        apex is also considered.
+        :param apex: the apex to be considered
+        :return: the updated apex
+        """
+
+        time_step = self.time_step_in_seconds
+        if time_step != 3600:
+            print("time_step_deviation!")
+
+        # We initialize an empty list in which the modified apex will be added:
+        new_apex_id = []
+        # We record the current radius and length prior to growth as the initial radius and length:
+        p["initial_radius"][v] = p["radius"][v]
+        p["initial_length"][v] = p["length"][v]
+        # We initialize the properties "potential_radius" and "potential_length" returned by the function:
+        p["potential_radius"][v] = p["radius"][v]
+        p["potential_length"][v] = p["length"][v]
+
+        # CALCULATING AN EQUIVALENT OF THERMAL TIME:
+        # -------------------------------------------
+
+        # We calculate a coefficient that will modify the different "ages" experienced by roots according to soil
+        # temperature assuming a linear relationship (this is equivalent as the calculation of "growth degree-days):
+        temperature_time_adjustment = p["temperature_modification"][v]
+
+        # CASE 1: THE APEX CORRESPONDS TO THE PRIMORDIUM OF A POTENTIALLY EMERGING SEMINAL OR ADVENTITIOUS ROOT
+        # -----------------------------------------------------------------------------------------------------
+        # If the seminal root has not emerged yet:
+        if p["type"][v] == self.type_Seminal_root_before_emergence or p["type"][v] == self.type_Adventitious_root_before_emergence:
+            # Handle special delay management when adventitious emergence is controled by the shoot
+            if p["type"][v] == self.type_Adventitious_root_before_emergence and self.synchronize_adventitious_emergence:
+                condition_for_axis_emergence = v == self.next_adventitious_primordium and len(p["adventitious_to_emerge"][1]) > 0
+                if condition_for_axis_emergence:
+                    p["thermal_time_since_primordium_formation"][v] = 0
+                    p["emergence_delay_in_thermal_time"][v] = p["adventitious_to_emerge"][1][0]
+                    self.adventitous_primordia_to_emerge.pop(self.next_adventitious_primordium)
+                    self.next_adventitious_primordium =  min(self.adventitous_primordia_to_emerge, key=self.adventitous_primordia_to_emerge.get)
+                    # Reduce the number of nodals to emerge by 1
+                    self.props["adventitious_to_emerge"][1].pop(0)
+                
+            # If the time elapsed since the last emergence of seminal root is higher than the prescribed interval time:
+            if (p["thermal_time_since_primordium_formation"][v] + time_step * temperature_time_adjustment) >= p["emergence_delay_in_thermal_time"][v]:
+                # The potential time elapsed since seminal root's possible emergence is calculated:
+                p["thermal_potential_time_since_emergence"][v] = p["thermal_time_since_primordium_formation"][v] + time_step * temperature_time_adjustment \
+                                                              - p["emergence_delay_in_thermal_time"][v]
+                # If the apex could have emerged sooner:
+                if p["thermal_potential_time_since_emergence"][v] > time_step * temperature_time_adjustment:
+                    # The time since emergence is reduced to the time elapsed during this time step:
+                    p["thermal_potential_time_since_emergence"][v] = time_step * temperature_time_adjustment
+
+                # We record the different elements that can contribute to the C supply necessary for growth,
+                # and we calculate a mean concentration of hexose in this supplying zone:
+                self.calculating_supply_for_elongation_opt(p, v)
+                
+                # The corresponding potential elongation of the apex is calculated:
+                p["potential_length"][v] = self.elongated_length_opt(p, v, initial_length=p["initial_length"][v],
+                                                              radius=p["initial_radius"][v],
+                                                              C_hexose_root=p["growing_zone_C_hexose_root"][v],
+                                                              elongation_time_in_seconds=p["thermal_potential_time_since_emergence"][v])
+                # Last, if ArchiSimple has been chosen as the growth model:
+                if self.simple_growth_duration:
+                    # Then we automatically allow the root to emerge, without consideration of C limitation:
+                    p["type"][v] = self.type_Normal_root_after_emergence
+            # In any case, the time since primordium formation is incremented, as usual:
+            p["actual_time_since_primordium_formation"][v] += time_step
+            p["thermal_time_since_primordium_formation"][v] += time_step * temperature_time_adjustment
+            # And the new element returned by the function corresponds to the potentially emerging apex:
+            new_apex_id.append(v)
+            # And the function returns this new apex and stops here:
+            return new_apex_id
+
+        # CASE 2: THE APEX CORRESPONDS TO THE PRIMORDIUM OF A POTENTIALLY EMERGING NORMAL LATERAL ROOT
+        # ---------------------------------------------------------------------------------------------
+        if p["type"][v] == self.type_Normal_root_before_emergence:
+            # If the time since primordium formation is higher than the delay of emergence:
+            if p["thermal_time_since_primordium_formation"][v] + time_step * temperature_time_adjustment > self.emergence_delay:
+                # The time since primordium formation is incremented:
+                p["actual_time_since_primordium_formation"][v] += time_step
+                p["thermal_time_since_primordium_formation"][v] += time_step * temperature_time_adjustment
+                # The potential time elapsed at the end of this time step since the emergence is calculated:
+                p["thermal_potential_time_since_emergence"][v] = p["thermal_time_since_primordium_formation"][v] - self.emergence_delay
+                # If the apex could have emerged sooner:
+                if p["thermal_potential_time_since_emergence"][v] > time_step * temperature_time_adjustment:
+                    # The time since emergence is equal to the time elapsed during this time step (since it must have emerged at this time step):
+                    p["thermal_potential_time_since_emergence"][v] = time_step * temperature_time_adjustment
+                # We record the different element that can contribute to the C supply necessary for growth,
+                # and we calculate a mean concentration of hexose in this supplying zone:
+                self.calculating_supply_for_elongation_opt(p, v)
+                # The corresponding elongation of the apex is calculated:
+                p["potential_length"][v] = self.elongated_length_opt(p, v, initial_length=p["initial_length"][v],
+                                                              radius=p["initial_radius"][v],
+                                                              C_hexose_root=p["growing_zone_C_hexose_root"][v],
+                                                              elongation_time_in_seconds=p["thermal_potential_time_since_emergence"][v])
+
+                # If ArchiSimple has been chosen as the growth model:
+                if self.simple_growth_duration:
+                    p["type"][v] = self.type_Normal_root_after_emergence
+                    new_apex_id.append(v)
+                    # And the function returns this new apex and stops here:
+                    return new_apex_id
+                # Otherwise, we control the actual emergence of this primordium through the management of the parent:
+                else:
+                    # We select the parent on which the primordium has been formed:
+                    index_parent = self.g.Father(v, EdgeType='+')
+                    # The possibility of emergence of a lateral root from the parent is recorded inside the parent:
+                    p["lateral_root_emergence_possibility"][index_parent] = "Possible"
+                    p["lateral_primordium_index"][index_parent] = v
+                    # And the new element returned by the function corresponds to the potentially emerging apex:
+                    new_apex_id.append(v)
+                    # And the function returns this new apex and stops here:
+                    return new_apex_id
+            # Otherwise, the time since primordium formation is simply incremented:
+            else:
+                p["actual_time_since_primordium_formation"][v] += time_step
+                p["thermal_time_since_primordium_formation"][v] += time_step * temperature_time_adjustment
+                # And the new element returned by the function corresponds to the modified apex:
+                new_apex_id.append(v)
+                # And the function returns this new apex and stops here:
+                return new_apex_id
+
+        # CASE 3: THE APEX BELONGS TO AN AXIS THAT HAS ALREADY EMERGED:
+        # --------------------------------------------------------------
+        # IF THE APEX CAN CONTINUE GROWING:
+        if p["thermal_time_since_emergence"][v] + time_step * temperature_time_adjustment < p["growth_duration"][v]:
+            # The times are incremented:
+            p["actual_time_since_primordium_formation"][v] += time_step
+            p["thermal_time_since_primordium_formation"][v] += time_step * temperature_time_adjustment
+            p["actual_time_since_emergence"][v] += time_step
+            p["thermal_time_since_emergence"][v] += time_step * temperature_time_adjustment
+            # We record the different element that can contribute to the C supply necessary for growth,
+            # and we calculate a mean concentration of hexose in this supplying zone:
+            self.calculating_supply_for_elongation_opt(p, v)
+            # The corresponding potential elongation of the apex is calculated:
+            p["potential_length"][v] = self.elongated_length_opt(p, v, initial_length=p["length"][v], radius=p["radius"][v],
+                                                          C_hexose_root=p["growing_zone_C_hexose_root"][v],
+                                                          elongation_time_in_seconds=time_step * temperature_time_adjustment)
+            # And the new element returned by the function corresponds to the modified apex:
+            new_apex_id.append(v)
+            # And the function returns this new apex and stops here:
+            return new_apex_id
+
+        # OTHERWISE, THE APEX HAD TO STOP:
+        else:
+            # IF THE APEX HAS NOT REACHED ITS LIFE DURATION:
+            if p["thermal_time_since_growth_stopped"][v] + time_step * temperature_time_adjustment < p["life_duration"][v]:
+                # IF THE APEX HAS ALREADY BEEN STOPPED AT A PREVIOUS TIME STEP:
+                if p["type"][v] == self.type_Stopped or p["type"][v] == self.type_Just_stopped:
+                    # The time since growth stopped is simply increased by one time step:
+                    p["actual_time_since_growth_stopped"][v] += time_step
+                    p["thermal_time_since_growth_stopped"][v] += time_step * temperature_time_adjustment
+                    # The type is (re)declared "Stopped":
+                    p["type"][v] = self.type_Stopped
+                    # The times are incremented:
+                    p["actual_time_since_primordium_formation"][v] += time_step
+                    p["thermal_time_since_primordium_formation"][v] += time_step * temperature_time_adjustment
+                    p["actual_time_since_emergence"][v] += time_step
+                    p["thermal_time_since_emergence"][v] += time_step * temperature_time_adjustment
+                    p["actual_time_since_cells_formation"][v] += time_step
+                    p["thermal_time_since_cells_formation"][v] += time_step * temperature_time_adjustment
+                    # The new element returned by the function corresponds to this apex:
+                    new_apex_id.append(v)
+                    # And the function returns this new apex and stops here:
+                    return new_apex_id
+
+                # OTHERWISE, THE APEX HAS TO STOP DURING THIS TIME STEP:
+                else:
+                    # The type is declared "Just stopped":
+                    p["type"][v] = self.type_Just_stopped
+                    # Then the exact time since growth stopped is calculated:
+                    p["thermal_time_since_growth_stopped"][v] = p["thermal_time_since_emergence"][v] \
+                                                             + time_step * temperature_time_adjustment \
+                                                             - p["growth_duration"][v]
+                    p["actual_time_since_growth_stopped"][v] = p["thermal_time_since_growth_stopped"][v] / temperature_time_adjustment
+
+                    # We record the different element that can contribute to the C supply necessary for growth,
+                    # and we calculate a mean concentration of hexose in this supplying zone:
+                    self.calculating_supply_for_elongation_opt(p, v)
+                    # And the potential elongation of the apex before growth stopped is calculated:
+                    p["potential_length"][v] = self.elongated_length_opt(p, v, initial_length=p["length"][v], radius=p["radius"][v],
+                                                                  C_hexose_root=p["growing_zone_C_hexose_root"][v],
+                                                                  elongation_time_in_seconds=time_step * temperature_time_adjustment - p["thermal_time_since_growth_stopped"][v])
+                    # VERIFICATION:
+                    if time_step * temperature_time_adjustment - p["thermal_time_since_growth_stopped"][v] < 0.:
+                        print("!!! ERROR: The apex", v, "has stopped since",
+                              p["actual_time_since_growth_stopped"][v],
+                              "seconds; the time step is", time_step)
+                        print("We set the potential length of this apex equal to its initial length.")
+                        p["potential_length"][v] = p["initial_length"][v]
+
+                    # The times are incremented:
+                    p["actual_time_since_primordium_formation"][v] += time_step
+                    p["actual_time_since_emergence"][v] += time_step
+                    p["thermal_time_since_primordium_formation"][v] += time_step * temperature_time_adjustment
+                    p["thermal_time_since_emergence"][v] += time_step * temperature_time_adjustment
+                    p["actual_time_since_cells_formation"][v] += time_step
+                    p["thermal_time_since_cells_formation"][v] += time_step * temperature_time_adjustment
+                    # The new element returned by the function corresponds to this apex:
+                    new_apex_id.append(v)
+                    # And the function returns this new apex and stops here:
+                    return new_apex_id
+
+            # OTHERWISE, THE APEX MUST BE DEAD:
+            else:
+                # IF THE APEX HAS ALREADY DIED AT A PREVIOUS TIME STEP:
+                if p["type"][v] == self.type_Dead or p["type"][v] == self.type_Just_dead:
+                    # The type is (re)declared "Dead":
+                    p["type"][v] = self.type_Dead
+                    # And the times are simply incremented:
+                    p["actual_time_since_primordium_formation"][v] += time_step
+                    p["actual_time_since_emergence"][v] += time_step
+                    p["actual_time_since_cells_formation"][v] += time_step
+                    p["actual_time_since_growth_stopped"][v] += time_step
+                    p["actual_time_since_death"][v] += time_step
+                    p["thermal_time_since_primordium_formation"][v] += time_step * temperature_time_adjustment
+                    p["thermal_time_since_emergence"][v] += time_step * temperature_time_adjustment
+                    p["thermal_time_since_cells_formation"][v] += time_step * temperature_time_adjustment
+                    p["thermal_time_since_growth_stopped"][v] += time_step * temperature_time_adjustment
+                    p["thermal_time_since_death"][v] += time_step * temperature_time_adjustment
+                    # The new element returned by the function corresponds to this apex:
+                    new_apex_id.append(v)
+                    # And the function returns this new apex and stops here:
+                    return new_apex_id
+                # OTHERWISE, THE APEX HAS TO DIE DURING THIS TIME STEP:
+                else:
+                    # Then the apex is declared "Just dead":
+                    p["type"][v] = self.type_Just_dead
+                    # The exact time since the apex died is calculated:
+                    p["thermal_time_since_death"][v] = p["thermal_time_since_growth_stopped"][v] + time_step * temperature_time_adjustment - p["life_duration"][v]
+                    p["actual_time_since_death"][v] = p["thermal_time_since_death"][v] / temperature_time_adjustment
+                    # And the other times are incremented:
+                    p["actual_time_since_primordium_formation"][v] += time_step
+                    p["actual_time_since_emergence"][v] += time_step
+                    p["actual_time_since_cells_formation"][v] += time_step
+                    p["actual_time_since_growth_stopped"][v] += time_step
+                    p["thermal_time_since_primordium_formation"][v] += time_step * temperature_time_adjustment
+                    p["thermal_time_since_emergence"][v] += time_step * temperature_time_adjustment
+                    p["thermal_time_since_cells_formation"][v] += time_step * temperature_time_adjustment
+                    p["thermal_time_since_growth_stopped"][v] += time_step * temperature_time_adjustment
+                    # The new element returned by the function corresponds to this apex:
+                    new_apex_id.append(v)
+                    # And the function returns this new apex and stops here:
+                    return new_apex_id
 
 
     # Function for calculating root elongation:
@@ -534,6 +759,44 @@ class RootGrowthModelCoupled(*inheriting):
                 elongation = potential_elongation * michaelis_menten_limitation
             else:
                 print(f"For element {element._vid}, no elongation, negative concentrations!! ", C_hexose_root, element.AA, element.struct_mass)
+                elongation = 0.
+        
+        # We calculate the new potential length corresponding to this elongation:
+        new_length = initial_length + elongation
+        if new_length < initial_length:
+            print("!!! ERROR: There is a problem of elongation, with the initial length", initial_length,
+                " and the radius", radius, "and the elongation time", elongation_time_in_seconds)
+        return new_length
+
+
+    # Function for calculating root elongation:
+    def elongated_length_opt(self, p, v, initial_length: float, radius: float, C_hexose_root: float, elongation_time_in_seconds: float):
+        """
+        This function computes a new length (m) based on the elongation process described by ArchiSimple and regulated by
+        the available concentration of hexose.
+        It has been modified in Root-BRIDGES to introduce a regulation by 
+        :param initial_length: the initial length (m)
+        :param radius: radius (m)
+        :param C_hexose_root: the concentration of hexose available for elongation (mol of hexose per gram of structural mass)
+        :param elongation_time_in_seconds: the period of elongation (s)
+        :return: the new elongated length
+        """
+
+        # If we keep the classical ArchiSimple rule:
+        if self.simple_growth_duration:
+            # Then the elongation is calculated following the rules of Pages et al. (2014):
+            elongation = self.EL * 2. * radius * elongation_time_in_seconds
+        else:
+            # Otherwise, we additionally consider a limitation of the elongation according to the local concentration of hexose,
+            # based on a Michaelis-Menten formalism:
+            if C_hexose_root > self.C_hexose_min_for_elongation or p["AA"][v] > 0:
+                # michaelis_menten_limitation = ((1 + self.Km_elongation) / C_hexose_root) * ((1 + self.Km_elongation_amino_acids) / p["AA)
+                michaelis_menten_limitation = ((C_hexose_root / (C_hexose_root + self.Km_elongation)) + (p["AA"][v] / (p["AA"][v] + self.Km_elongation_amino_acids))) / 2
+                if debug: print("MM", michaelis_menten_limitation)
+                potential_elongation = self.EL * 2. * radius * elongation_time_in_seconds
+                elongation = potential_elongation * michaelis_menten_limitation
+            else:
+                print(f"For element {v}, no elongation, negative concentrations!! ", C_hexose_root, p["AA"][v], p["struct_mass"][v])
                 elongation = 0.
         
         # We calculate the new potential length corresponding to this elongation:
@@ -659,6 +922,122 @@ class RootGrowthModelCoupled(*inheriting):
         n.list_of_elongation_supporting_elements_hexose = list_of_elongation_supporting_elements_hexose
         n.list_of_elongation_supporting_elements_amino_acids = list_of_elongation_supporting_elements_amino_acids
         n.list_of_elongation_supporting_elements_mass = list_of_elongation_supporting_elements_mass
+
+
+
+    # Function for calculating the amount of C to be used in neighbouring elements for sustaining root elongation:
+    def calculating_supply_for_elongation_opt(self, p, v):
+        """
+        This function computes the list of root elements that can supply C as hexose for sustaining the elongation
+        of a given element, as well as their structural mass and their amount of available hexose.
+        EDIT : Sustaining the need for N when a root apex should elongate has been added.
+        :param p: the MTG dictionnary of properties
+        :param v: the vertex identifier of the current apex
+        :return: three lists containing the indices of elements, their hexose amount (mol of hexose) and their structural mass (g).
+        """
+
+        # We initialize each amount of hexose available for growth:
+        p["hexose_possibly_required_for_elongation"][v] = 0.
+        p["amino_acids_possibly_required_for_elongation"][v] = 0.
+        p["struct_mass_contributing_to_elongation"][v] = 0.
+
+        # We initialize empty lists:
+        list_of_elongation_supporting_elements = []
+        list_of_elongation_supporting_elements_hexose = []
+        list_of_elongation_supporting_elements_amino_acids = []
+        list_of_elongation_supporting_elements_mass = []
+
+        # We then calculate the length of an apical zone of a fixed length which can provide the amount of hexose required for growth:
+        growing_zone_length = self.growing_zone_factor * p["radius"][v]
+        # We calculate the corresponding volume to which this length should correspond based on the diameter of this apex:
+        supplying_volume = growing_zone_length * p["radius"][v] ** 2 * pi
+
+        # We start counting the hexose at the apex:
+        index = v
+
+        # We initialize a temporary variable that will be used as a counter:
+        remaining_volume = supplying_volume
+
+        Father = self.g.Father
+
+        # As long the remaining volume is not zero:
+        while remaining_volume > 0:
+
+            # If the volume of the current element is lower than the remaining volume:
+            if remaining_volume > p["volume"][index]:
+                # We make sure to include in the list of supplying elements only elements with a positive length
+                # (e.g. NOT the elements of length 0 that support seminal or adventitious roots):
+                if p["length"][index] > 0.:
+                    # We add to the amount of hexose available all the hexose in the current element
+                    # (EXCLUDING sugars in the living root hairs):
+                    # TODO: Should the C from root hairs be used for helping roots to grow?
+                    hexose_contribution = p["C_hexose_root"][index] * p["struct_mass"][index]
+                    amino_acids_contribution = p["AA"][index] * p["struct_mass"][index]
+                    p["hexose_possibly_required_for_elongation"][v] += hexose_contribution
+                    p["amino_acids_possibly_required_for_elongation"][v] += amino_acids_contribution
+                    p["struct_mass_contributing_to_elongation"][v] += p["struct_mass"][index]
+                    # We record the index of the contributing element:
+                    list_of_elongation_supporting_elements.append(index)
+                    # We record the amount of hexose that the current element can provide:
+                    list_of_elongation_supporting_elements_hexose.append(hexose_contribution)
+                    # We record the amount of amino acids that the current element can provide:
+                    list_of_elongation_supporting_elements_amino_acids.append(amino_acids_contribution)
+                    # We record the structural mass from which the current element contributes:
+                    list_of_elongation_supporting_elements_mass.append(p["struct_mass"][index])
+                    # We subtract the volume of the current element to the remaining volume:
+                    remaining_volume = remaining_volume - p["volume"][index]
+
+                # And we try to move the index to the segment preceding the current element:
+                index_attempt = Father(index, EdgeType='<')
+                # If there is no father element on this axis:
+                if index_attempt is None:
+                    # Then we try to move to the mother root, if any:
+                    index_attempt = Father(index, EdgeType='+')
+                    # If there is no such root:
+                    if index_attempt is None:
+                        # Then we exit the loop here:
+                        break
+                # We set the new index:
+                index = index_attempt
+                
+            # Otherwise, this is the last preceding element to consider:
+            else:
+                # We finally add to the amount of hexose available for elongation a part of the hexose of the current element:
+                hexose_contribution = p["C_hexose_root"][index] * p["struct_mass"][index] \
+                                      * remaining_volume / p["volume"][index]
+                amino_acids_contribution = p["AA"][index] * p["struct_mass"][index] \
+                                      * remaining_volume / p["volume"][index]
+                p["hexose_possibly_required_for_elongation"][v] += hexose_contribution
+                p["amino_acids_possibly_required_for_elongation"][v] += amino_acids_contribution
+                p["struct_mass_contributing_to_elongation"][v] += p["struct_mass"][index] \
+                                                            * remaining_volume / p["volume"][index]
+                # We record the index of the contributing element:
+                list_of_elongation_supporting_elements.append(index)
+                # We record the amount of hexose that the current element can provide:
+                list_of_elongation_supporting_elements_hexose.append(hexose_contribution)
+                # We record the amount of amino acids that the current element can provide:
+                list_of_elongation_supporting_elements_amino_acids.append(amino_acids_contribution)
+                # We record the structural mass from which the current element contributes:
+                list_of_elongation_supporting_elements_mass.append(
+                    p["struct_mass"][index] * remaining_volume / p["volume"][index])
+                # And the remaining volume to consider is set to 0:
+                remaining_volume = 0.
+                # And we exit the loop here:
+                break
+
+        # We record the average concentration in hexose of the whole zone of hexose supply contributing to elongation:
+        if p["struct_mass_contributing_to_elongation"][v] > 0.:
+            p["growing_zone_C_hexose_root"][v] = p["hexose_possibly_required_for_elongation"][v] / p["struct_mass_contributing_to_elongation"][v]
+        else:
+            print("!!! ERROR: the mass contributing to elongation in element", v, "of type", p["type"][v], "is",
+                p["struct_mass_contributing_to_elongation"][v],
+                "g, and its structural mass is", p["struct_mass"][v], "g!")
+            p["growing_zone_C_hexose_root"][v] = 0.
+
+        p["list_of_elongation_supporting_elements"][v] = list_of_elongation_supporting_elements
+        p["list_of_elongation_supporting_elements_hexose"][v] = list_of_elongation_supporting_elements_hexose
+        p["list_of_elongation_supporting_elements_amino_acids"][v] = list_of_elongation_supporting_elements_amino_acids
+        p["list_of_elongation_supporting_elements_mass"][v] = list_of_elongation_supporting_elements_mass
 
 
     def primordium_formation(self, apex, elongation_rate=0.):
@@ -1006,6 +1385,229 @@ class RootGrowthModelCoupled(*inheriting):
 
         new_segment.append(segment)
         return new_segment
+
+
+    # Function calculating the potential development of a root segment:
+    def potential_segment_development_opt(self, p, v, type_handle):
+        """
+        This function considers a root segment, i.e. a root element that can thicken but not elongate, and calculates its
+        potential increase in radius according to the pipe model (possibly regulated by C availability), and its possible death.
+
+        EDIT : Added a regulation of root thickening with the availability of amino acids in the root segment through a bi-michaelian.
+
+        :param segment: the segment to be considered
+        :return: the updated segment
+        """
+
+        # We initialize an empty list that will contain the new segment to be returned:
+        new_segment_id = []
+        # We record the current radius and length prior to growth as the initial radius and length:
+        p["initial_radius"][v] = p["radius"][v]
+        p["initial_length"][v] = p["length"][v]
+        # We initialize the properties "potential_radius" and "potential_length":
+        p["theoretical_radius"][v] = p["radius"][v]
+        p["potential_radius"][v] = p["radius"][v]
+        p["potential_length"][v] = p["length"][v]
+
+        # CASE 1: THE SEGMENT IS A NODULE:
+        # ################################
+        # NOTE: a nodule is considered here as a tumor which grows radially by feeding from root hexose, but does not produce
+        # new root axes.
+
+        if type_handle[v] == self.type_Root_nodule:
+            # We consider the amount of hexose available in the nodule AND in the parent segment
+            # (EXCLUDING the amount of hexose in living rot hairs):
+            # TODO: Should the C from root hairs be used for helping nodules to grow?
+            index_parent = self.g.Father(v, EdgeType='+')
+            p["hexose_available_for_thickening"][v] = p["C_hexose_root"][index_parent] * p["struct_mass"][index_parent] \
+                                                      + p["C_hexose_root"][v] * p["struct_mass"][v]
+            p["amino_acids_available_for_thickening"][v] = p["AA"][index_parent] * p["struct_mass"][index_parent] \
+                                                      + p["AA"][v] * p["struct_mass"][v]
+            # We calculate an average concentration of hexose that will help to regulate nodule growth:
+            C_hexose_regulating_nodule_growth = p["hexose_available_for_thickening"][v] / (
+                    p["struct_mass"][index_parent] + p["struct_mass"][v])
+            N_amino_acids_regulating_nodule_growth = p["amino_acids_available_for_thickening"][v] / (
+                    p["struct_mass"][index_parent] + p["struct_mass"][v])
+            # We modulate the relative increase in radius by the amount of C available in the nodule:
+            thickening_rate = self.relative_nodule_thickening_rate_max / (
+                ((1+self.Km_nodule_thickening) / C_hexose_regulating_nodule_growth)*((1+self.Km_nodule_thickening_amino_acids) / N_amino_acids_regulating_nodule_growth)
+            )
+            
+            # We calculate a coefficient that will modify the rate of thickening according to soil temperature
+            # assuming a linear relationship (this is equivalent as the calculation of "growth degree-days):
+            thickening_rate = thickening_rate * p["temperature_modification"][v]
+
+            p["theoretical_radius"][v] = p["radius"][v] * (1 + thickening_rate * self.time_step_in_seconds)
+            if p["theoretical_radius"][v] > self.nodule_max_radius:
+                p["potential_radius"][v] = self.nodule_max_radius
+            else:
+                p["potential_radius"][v] = p["theoretical_radius"][v]
+            # We add the modified segment to the list of new segments, and we quit the function here:
+            new_segment_id.append(v)
+            return new_segment_id
+
+        # CASE 2: THE SEGMENT IS NOT A NODULE:
+        ######################################
+
+        # We initialize internal variables:
+        son_section = 0.
+        sum_of_lateral_sections = 0.
+        number_of_actual_children = 0.
+        death_count = 0.
+        list_of_times_since_death = []
+
+        # We define the amount of hexose available for thickening
+        # (EXCLUDING the amount of hexose in living root hairs):
+        # TODO: Should the C from root hairs be used for helping nodules to grow?
+        p["hexose_available_for_thickening"][v] = p["C_hexose_root"][v] * p["struct_mass"][v]
+        p["amino_acids_available_for_thickening"][v] = p["AA"][v] * p["struct_mass"][v]
+
+        # CALCULATING AN EQUIVALENT OF THERMAL TIME:
+        # ------------------------------------------
+
+        # We calculate a coefficient that will modify the different "ages" experienced by roots according to soil
+        # temperature assuming a linear relationship (this is equivalent as the calculation of "growth degree-days):
+        temperature_time_adjustment = p["temperature_modification"][v]
+
+        # CHECKING WHETHER THE APEX OF THE ROOT AXIS HAS STOPPED GROWING:
+        # ---------------------------------------------------------------
+
+        # We look at the apex of the axis to which the segment belongs (i.e. we get the last element of the axis):
+        apex_id = p["axis_apex_id"][v]
+
+        # index_apex = self.g.Axis(v)[-1]
+        # apex = self.g.node(index_apex)
+        # # print("For segment", v, "the terminal index is", index_apex, "and has the type", apex.label)
+        # if apex.label != self.label_Apex:
+        #     print("ERROR: when trying to access the terminal apex of the axis of the segment", v,
+        #         "we obtained the element", index_apex," that is a", apex.label, "!!!")
+            
+        # Depending on the type of the apex, we adjust the type of the segment on the same axis:
+        if type_handle[apex_id] == self.type_Just_stopped:
+           type_handle[v] = self.type_Just_stopped
+        elif type_handle[apex_id] == self.type_Stopped:
+            type_handle[v] = self.type_Stopped
+
+        # CHECKING POSSIBLE ROOT SEGMENT DEATH:
+        # -------------------------------------
+        children = self.g.children(v)
+        # For each child of the segment:
+        for child_id in children:
+
+            # Then we add one child to the actual number of children:
+            number_of_actual_children += 1
+
+            if p["radius"][child_id] < 0. or p["potential_radius"][child_id] < 0.:
+                print("!!! ERROR: the radius of the element", child_id, "is negative!")
+            # If the child belongs to the same axis:
+            if p["edge_type"][child_id] == '<':
+                # Then we record the THEORETICAL section of this child:
+                son_section = p["theoretical_radius"][child_id] ** 2 * pi
+                # # Then we record the section of this child:
+                # son_section = p["radius * p["radius * pi
+            # Otherwise if the child is the element of a lateral root AND if this lateral root has already emerged
+            # AND the lateral element is not a nodule:
+            elif p["edge_type"][child_id] == '+' and p["length"][child_id] > 0. and p["type"][child_id] != self.type_Root_nodule:
+                # We add the POTENTIAL section of this child to a sum of lateral sections:
+                sum_of_lateral_sections += p["theoretical_radius"][child_id] ** 2 * pi
+                # # We add the section of this child to a sum of lateral sections:
+                # sum_of_lateral_sections += p["radius ** 2 * pi
+
+            # If this child has just died or was already dead:
+            if type_handle[child_id] == self.type_Just_dead or type_handle[child_id] == self.type_Dead:
+                # Then we add one dead child to the death count:
+                death_count += 1
+                # And we record the exact time since death:
+                list_of_times_since_death.append(p["actual_time_since_death"][child_id])
+
+        # If each child in the list of children has been recognized as dead or just dead:
+        if death_count == number_of_actual_children:
+            # If the investigated segment was already declared dead at the previous time step:
+            if type_handle[v] == self.type_Just_dead or type_handle[v] == self.type_Dead:
+                # Then we transform its status into "Dead"
+                type_handle[v] = self.type_Dead
+            else:
+                # Then the segment has to die:
+                type_handle[v] = self.type_Just_dead
+        # Otherwise, at least one of the children axis is not dead, so the father segment should not be dead
+
+        # REGULATION OF RADIAL GROWTH BY AVAILABLE CARBON:
+        # ------------------------------------------------
+        # If the radial growth is possible:
+        if self.radial_growth:
+            # The radius of the root segment is defined according to the pipe model.
+            # In ArchiSimp9, the radius is increased by considering the sum of the sections of all the children,
+            # by adding a fraction (SGC) of this sum of sections to the current section of the parent segment,
+            # and by calculating the new radius that corresponds to this new section of the parent:
+            p["theoretical_radius"][v] = sqrt(son_section / pi + self.SGC * sum_of_lateral_sections / pi)
+            # However, if the net difference is below 0.1% of the initial radius:
+            if (p["theoretical_radius"][v] - p["initial_radius"][v]) <= 0.001 * p["initial_radius"][v]:
+                # Then the potential radius is set to the initial radius:
+                p["theoretical_radius"][v] = p["initial_radius"][v]
+            # If we consider simple ArchiSimple rules:
+            if self.simple_growth_duration:
+                # Then the potential radius to form is equal to the theoretical one determined by geometry:
+                p["potential_radius"][v] = p["theoretical_radius"][v]
+            # Otherwise, if we don't strictly follow simple ArchiSimple rules and if there can be an increase in radius:
+            elif p["length"][v] > 0. and p["theoretical_radius"][v] > p["radius"][v] and p["C_hexose_root"][v] > self.C_hexose_min_for_thickening:
+                # We calculate the maximal increase in radius that can be achieved over this time step,
+                # based on a Michaelis-Menten formalism that regulates the maximal rate of increase
+                # according to the amount of hexose available:
+                thickening_rate = self.relative_root_thickening_rate_max / (
+                    ((1+self.Km_nodule_thickening) / p["C_hexose_root"][v]) + ((1+self.Km_nodule_thickening_amino_acids) / p["AA"][v])) / 2
+
+                # We calculate a coefficient that will modify the rate of thickening according to soil temperature
+                # assuming a linear relationship (this is equivalent as the calculation of "growth degree-days):
+                thickening_rate = thickening_rate * p["temperature_modification"][v]
+
+                # The maximal possible new radius according to this regulation is therefore:
+                new_radius_max = (1 + thickening_rate * self.time_step_in_seconds) * p["initial_radius"][v]
+                # If the potential new radius is higher than the maximal new radius:
+                if p["theoretical_radius"][v] > new_radius_max:
+                    # Then potential thickening is limited up to the maximal new radius:
+                    p["potential_radius"][v] = new_radius_max
+                # Otherwise, the potential radius to achieve is equal to the theoretical one:
+                else:
+                    p["potential_radius"][v] = p["theoretical_radius"][v]
+            # And if the segment corresponds to one of the elements of length 0 supporting one seminal or adventitious root:
+            if type_handle[v] == self.type_Support_for_seminal_root or type_handle[v] == self.type_Support_for_adventitious_root:
+                # Then the radius is directly increased, as this element will not be considered in the function calculating actual growth:
+                p["radius"][v] = p["potential_radius"][v]
+
+        # UPDATING THE DIFFERENT TIMES:
+        # ------------------------------
+
+        # We increase the various time variables:
+        p["actual_time_since_primordium_formation"][v] += self.time_step_in_seconds
+        p["actual_time_since_emergence"][v] += self.time_step_in_seconds
+        p["actual_time_since_cells_formation"][v] += self.time_step_in_seconds
+        p["thermal_time_since_primordium_formation"][v] += self.time_step_in_seconds * temperature_time_adjustment
+        p["thermal_time_since_emergence"][v] += self.time_step_in_seconds * temperature_time_adjustment
+        p["thermal_time_since_cells_formation"][v] += self.time_step_in_seconds * temperature_time_adjustment
+
+        if type_handle[v] == self.type_Just_stopped:
+            p["actual_time_since_growth_stopped"][v] = p["actual_time_since_growth_stopped"][apex_id]
+            p["thermal_time_since_growth_stopped"][v] = p["actual_time_since_growth_stopped"][apex_id] * temperature_time_adjustment
+        if type_handle[v] == self.type_Stopped:
+            p["actual_time_since_growth_stopped"][v] += self.time_step_in_seconds
+            p["thermal_time_since_growth_stopped"][v] += self.time_step_in_seconds * temperature_time_adjustment
+        if type_handle[v] == self.type_Just_dead:
+            p["actual_time_since_growth_stopped"][v] += self.time_step_in_seconds
+            p["thermal_time_since_growth_stopped"][v] += self.time_step_in_seconds * temperature_time_adjustment
+            # AVOIDING PROBLEMS - We check that the list of times_since_death is not empty:
+            if list_of_times_since_death:
+                p["actual_time_since_death"][v] = min(list_of_times_since_death)
+            else:
+                p["actual_time_since_death"][v] = 0.
+            p["thermal_time_since_death"][v] = p["actual_time_since_death"][v] * temperature_time_adjustment
+        if type_handle[v] == self.type_Dead:
+            p["actual_time_since_growth_stopped"][v] += self.time_step_in_seconds
+            p["thermal_time_since_growth_stopped"][v] += self.time_step_in_seconds * temperature_time_adjustment
+            p["actual_time_since_death"][v] += self.time_step_in_seconds
+            p["thermal_time_since_death"][v] += self.time_step_in_seconds * temperature_time_adjustment
+
+        new_segment_id.append(v)
+        return new_segment_id
     
     
     # Actual elongation, radial growth and growth respiration of root elements:
@@ -1598,6 +2200,185 @@ class RootGrowthModelCoupled(*inheriting):
             n.amino_acids_consumption_by_growth_amount += amino_acids_comsumption
             n.amino_acids_consumption_by_growth += amino_acids_comsumption / self.time_step_in_seconds
             n.resp_growth += hexose_consumption * 6. * (1 - self.yield_growth)
+
+
+    def root_hairs_dynamics_opt(self, p, v):
+        """
+        This function computes the evolution of the density and average length of root hairs along each root,
+        and specifies which hairs are alive or dead.
+
+        EDIT : After growth function to should is called in post_growth updating loop
+
+        :return:
+        """
+        # TODO FOR TRISTAN In a second step, consider playing on the density / max. length of root hairs depending on the availability of N in the soil (if relevant)?
+        
+        # We also exclude nodules and dead elements from this computation:
+        n_type = p["type"][v]
+        if n_type not in (self.type_Just_dead, self.type_Dead, self.type_Root_nodule) and p["distance_from_tip"][v] > self.growing_zone_factor * p["radius"][v]:
+            # STORE SOME OF THE HANDLES TO AVOID REPEATED LOOKUPS
+            distance_from_tip = p["distance_from_tip"]
+            length = p["length"]
+            radius = p["radius"]
+            
+            # # TODO: Check the consequences of avoiding apex in root hairs dynamics!
+            # # WE ALSO AVOID ROOT APICES - EVEN IF IN THEORY ROOT HAIRS MAY ALSO APPEAR ON THEM:
+            # if n.label == "Apex":
+            #     continue
+            # # Even if root hairs should have already emerge on that root apex, they will appear in the next step (or in a few steps)
+            # # when the element becomes a segment.
+
+            # We calculate the equivalent of a thermal time for the current time step:
+            temperature_time_adjustment = max(1e-3, p["temperature_modification"][v])
+
+            elapsed_thermal_time = self.time_step_in_seconds * temperature_time_adjustment
+
+            if elapsed_thermal_time > 0.:
+                # We keep in memory the initial total mass of root hairs (possibly including dead hairs):
+                initial_root_hairs_struct_mass = p["root_hairs_struct_mass"][v]
+
+                # We calculate the total number of (newly formed) root hairs (if any) and update their age:
+                # ------------------------------------------------------------------------------------------
+                
+                # CASE 2 - If all root hairs have already been formed:
+                if p["all_root_hairs_formed"][v]:
+                    # Then we simply increase the time since root hairs emergence started:
+                    p["actual_time_since_root_hairs_emergence_started"][v] += self.time_step_in_seconds
+                    p["thermal_time_since_root_hairs_emergence_started"][v] += elapsed_thermal_time
+                    p["actual_time_since_root_hairs_emergence_stopped"][v] += self.time_step_in_seconds
+                    p["thermal_time_since_root_hairs_emergence_stopped"][v] += elapsed_thermal_time
+                    total_root_hairs_number = p["total_root_hairs_number"][v]
+                # CASE 3 - If the theoretical growing zone limit is located somewhere within the root element:
+                elif distance_from_tip[v] - length[v] < self.growing_zone_factor * radius[v]:
+                    # We first record the previous length of the root hair zone within the element:
+                    initial_length_with_hairs = p["actual_length_with_hairs"][v]
+                    # Then the new length of the root hair zone is calculated:
+                    p["actual_length_with_hairs"][v] = distance_from_tip[v] - self.growing_zone_factor * radius[v]
+                    net_increase_in_root_hairs_length = p["actual_length_with_hairs"][v] - initial_length_with_hairs
+                    # The corresponding number of root hairs is calculated:
+                    total_root_hairs_number = self.root_hairs_density * radius[v] * p["actual_length_with_hairs"][v]
+                    p["total_root_hairs_number"][v] = total_root_hairs_number
+                    # The time since root hair formation started is then calculated, using the recent increase in the length
+                    # of the current root hair zone and the elongation rate of the corresponding root tip. The latter is
+                    # calculated using the difference between the new distance_from_tip of the element and the previous one:
+                    
+                    elongation_rate_in_actual_time = (distance_from_tip[v] - p["former_distance_from_tip"][v]) / self.time_step_in_seconds
+                    elongation_rate_in_thermal_time = (distance_from_tip[v] - p["former_distance_from_tip"][v]) / elapsed_thermal_time
+                    # SUBCASE 3.1 - If root hairs had not emerged at the previous time step:
+                    if elongation_rate_in_actual_time > 0. and initial_length_with_hairs <= 0.:
+                        # We increase the time since root hairs emerged by only the fraction of the time step corresponding to the growth of hairs:
+                        p["actual_time_since_root_hairs_emergence_started"][v] += \
+                            self.time_step_in_seconds - net_increase_in_root_hairs_length / elongation_rate_in_actual_time
+                        p["thermal_time_since_root_hairs_emergence_started"][v] += \
+                            elapsed_thermal_time - net_increase_in_root_hairs_length / elongation_rate_in_thermal_time
+                    # SUBCASE 3.2 - the hairs had already started to grow:
+                    else:
+                        # Consequently, the full time elapsed during this time step can be added to the age:
+                        p["actual_time_since_root_hairs_emergence_started"][v] += self.time_step_in_seconds
+                        p["thermal_time_since_root_hairs_emergence_started"][v] += elapsed_thermal_time
+                # CASE 4 - the element is now "full" with root hairs as the limit of root elongation is located further down:
+                else:
+                    # The actual time since root hairs emergence started is first increased:
+                    p["actual_time_since_root_hairs_emergence_started"][v] += self.time_step_in_seconds
+                    p["thermal_time_since_root_hairs_emergence_started"][v] += elapsed_thermal_time
+                    # We then record the previous length of the root hair zone within the root element:
+                    initial_length_with_hairs = p["actual_length_with_hairs"][v]
+                    # And the new length of the root hair zone is necessarily the full length of the root element:
+                    p["actual_length_with_hairs"][v] = length[v]
+                    net_increase_in_root_hairs_length = p["actual_length_with_hairs"][v] - initial_length_with_hairs
+                    # The total number of hairs is defined according to the radius and total length of the element:
+                    total_root_hairs_number = self.root_hairs_density * radius[v] * length[v]
+                    p["total_root_hairs_number"][v] = total_root_hairs_number
+                    # The elongation of the corresponding root tip is calculated as the difference between the new
+                    # distance_from_tip of the element and the previous one:
+                    elongation_rate_in_actual_time = (distance_from_tip[v] - p["former_distance_from_tip"][v]) / self.time_step_in_seconds
+                    elongation_rate_in_thermal_time = (distance_from_tip[v] - p["former_distance_from_tip"][v]) / elapsed_thermal_time
+                    # The actual time since root hairs emergence has stopped is then calculated:
+                    if elongation_rate_in_actual_time > 0.:
+                        p["actual_time_since_root_hairs_emergence_stopped"][v] += \
+                            self.time_step_in_seconds - net_increase_in_root_hairs_length / elongation_rate_in_actual_time
+                        p["thermal_time_since_root_hairs_emergence_stopped"][v] += \
+                            elapsed_thermal_time - net_increase_in_root_hairs_length / elongation_rate_in_thermal_time
+                    else:
+                        p["actual_time_since_root_hairs_emergence_stopped"][v] += self.time_step_in_seconds
+                        p["thermal_time_since_root_hairs_emergence_stopped"][v] += elapsed_thermal_time
+                    # At this stage, all root hairs that could be formed have been formed, so we record this:
+                    p["all_root_hairs_formed"][v] = True
+
+                # We now calculate the number of living and dead root hairs:
+                # -----------------------------------------------------------
+                # Root hairs are dying when the time since they emerged is higher than their lifespan.
+                # If the time since root hairs emergence started is lower than the lifespan,
+                # no root hair should be dead:
+                if p["thermal_time_since_root_hairs_emergence_started"][v] <= p["root_hairs_lifespan"][v]:
+                    p["dead_root_hairs_number"][v] = 0.
+                # Otherwise, if the time since root hairs emergence stopped is higher than the lifespan:
+                elif p["thermal_time_since_root_hairs_emergence_stopped"][v] > p["root_hairs_lifespan"][v]:
+                    # Then all the root hairs of the root element must now be dead:
+                    p["dead_root_hairs_number"][v] = total_root_hairs_number
+                # In the intermediate case, there are currently both dead and living root hairs on the root element:
+                else:
+                    # We assume that there is a linear decrease of root hair age between the first hair that has emerged
+                    # and the last one that has emerged:
+                    time_since_first_death = p["thermal_time_since_root_hairs_emergence_started"][v] - p["root_hairs_lifespan"][v]
+                    dead_fraction = time_since_first_death / (p["thermal_time_since_root_hairs_emergence_started"][v]
+                                                                - p["thermal_time_since_root_hairs_emergence_stopped"][v])
+                    p["dead_root_hairs_number"][v] = total_root_hairs_number * dead_fraction
+
+                # In all cases, the number of the living root hairs is then calculated by difference with the total hair number:
+                living_root_hairs_number = total_root_hairs_number - p["dead_root_hairs_number"][v]
+                p["living_root_hairs_number"][v] = living_root_hairs_number
+
+                # We calculate the new average root hairs length, if needed:
+                # ----------------------------------------------------------
+                # If the root hairs had not reached their maximal length:
+                if p["root_hair_length"][v] < self.root_hair_max_length:
+                    # The new potential root hairs length is calculated according to the elongation rate,
+                    # corrected by temperature and modulated by the concentration of hexose (in the same way as for root
+                    # elongation) available in the root hair zone on the root element:
+                    cn_limitation = ((p["C_hexose_root"][v] / (p["C_hexose_root"][v] + self.Km_elongation)) + (p["AA"][v] / (p["AA"][v] + self.Km_elongation_amino_acids))) / 2
+                    new_length = p["root_hair_length"][v] + self.root_hairs_elongation_rate * self.root_hair_radius * (p["actual_length_with_hairs"][v] / length[v]) * cn_limitation * elapsed_thermal_time
+                
+                    # If the new calculated length is higher than the maximal length:
+                    if new_length > self.root_hair_max_length:
+                        # We set the root hairs length to the maximal length:
+                        root_hair_length = self.root_hair_max_length
+                    else:
+                        # Otherwise, we record the new calculated length:
+                        root_hair_length = new_length
+                    p["root_hair_length"][v] = root_hair_length
+
+                else:
+                    root_hair_length = p["root_hair_length"][v]
+
+                # We finally calculate the total external surface (m2), volume (m3) and mass (g) of root hairs:
+                # ----------------------------------------------------------------------------------------------
+                # In the calculation of surface, we consider the root hair to be a cylinder, and include the lateral section,
+                # but exclude the section of the cylinder at the tip:
+                root_hairs_volume = (self.root_hair_radius ** 2 * pi) * root_hair_length * total_root_hairs_number
+                p["root_hairs_volume"][v] = root_hairs_volume
+                root_hairs_struct_mass = root_hairs_volume * p["root_tissue_density"][v]
+                p["root_hairs_struct_mass"][v] = root_hairs_struct_mass
+                if total_root_hairs_number > 0.:
+                    p["living_root_hairs_struct_mass"][v] = root_hairs_struct_mass * living_root_hairs_number / total_root_hairs_number
+                else:
+                    p["living_root_hairs_struct_mass"][v] = 0.
+
+                # We calculate the mass of hairs that has been effectively produced, including from root hairs that may have died since then:
+                # ----------------------------------------------------------------------------------------------------------------------------
+                # We calculate the new production as the difference between initial and final mass:
+                root_hairs_struct_mass_produced = root_hairs_struct_mass - initial_root_hairs_struct_mass
+                p["root_hairs_struct_mass_produced"][v] = root_hairs_struct_mass_produced
+
+                # We add the cost of producing the new living root hairs (if any) to the hexose consumption by growth:
+                hexose_consumption = root_hairs_struct_mass_produced * self.struct_mass_C_content / self.yield_growth / 6.
+                amino_acids_comsumption = root_hairs_struct_mass_produced * self.struct_mass_N_content / self.yield_growth_N / self.r_Nm_AA
+                p["hexose_consumption_by_growth_amount"][v] += hexose_consumption
+                p["hexose_consumption_by_growth"][v] += hexose_consumption / self.time_step_in_seconds
+                p["amino_acids_consumption_by_growth_amount"][v] += amino_acids_comsumption
+                p["amino_acids_consumption_by_growth"][v] += amino_acids_comsumption / self.time_step_in_seconds
+                p["resp_growth"][v] += hexose_consumption * 6. * (1 - self.yield_growth)
+
 
     # Adding a new root element with pre-defined properties:
     def ADDING_A_CHILD(self, mother_element, edge_type='+', label=2, type=6,
