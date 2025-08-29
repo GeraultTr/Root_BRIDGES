@@ -5,7 +5,7 @@ from openalea.metafspm.component_factory import *
 from openalea.metafspm.component import declare
 
 from openalea.mtg import *
-from openalea.mtg.traversal import post_order
+from openalea.mtg.traversal import post_order2
 from numpy import pi, sqrt
 import numpy as np
 
@@ -81,9 +81,9 @@ class RootGrowthModelCoupled(*inheriting):
     # -----------------------------------
 
     # Function that calculates the potential growth of the whole MTG at a given time step:
-    @potential
-    @state
-    def potential_growth(self):
+    # @potential
+    # @state
+    def potential_growth_old(self):
         """
         This function covers the whole root MTG and computes the potential growth of segments and apices.
         :return:
@@ -94,8 +94,13 @@ class RootGrowthModelCoupled(*inheriting):
         potential_segment_development = self.potential_segment_development
         temperature_modification = self.growth_temperature_modification
 
+        tot_prep = 0
+        tot_apex = 0
+        tot_segment = 0
+
         # We simulate the development of all apices and segments in the MTG:
-        for vid in g.vertices_iter(scale=1):
+        for vid in post_order2(g, 1):
+            t1 = time.time()
             n = g.node(vid)
 
             # Re-initializes different growth-related variables (e.g. potential growth variables).
@@ -124,14 +129,133 @@ class RootGrowthModelCoupled(*inheriting):
             n.theoretical_radius = n.radius
             n.initial_struct_mass = n.struct_mass
             n.initial_living_root_hairs_struct_mass = n.living_root_hairs_struct_mass
+            tot_prep += time.time() - t1
 
-            # Store temperature modifications for further calls
-            n.temperature_modification = temperature_modification(n.soil_temperature)
-
+            
             if n.label == self.label_Apex:
+                t1 = time.time()
+                # Edge case because we assign soil states only to emerged elements
+                if n.length == 0.:
+                    parent = g.parent(vid) if vid not in self.collar_children else 1
+                    n.soil_temperature = g.node(parent).soil_temperature
+                # Store temperature modifications for further calls
+                n.temperature_modification = temperature_modification(n.soil_temperature)
                 potential_apex_development(apex=n)
+                tot_apex += time.time() - t1
+            
+
             elif n.label == self.label_Segment:
+                t1 = time.time()
+                # Store temperature modifications for further calls
+                n.temperature_modification = temperature_modification(n.soil_temperature)
                 potential_segment_development(segment=n)
+                tot_segment += time.time() - t1
+
+        print("tot_prep", tot_prep)
+        print("tot_segment", tot_segment)
+        print("tot_apex", tot_apex)
+
+    @potential
+    @state
+    def potential_growth(self):
+        """
+        This function covers the whole root MTG and computes the potential growth of segments and apices.
+        :return:
+        """
+        # Repeated calls handle
+        g = self.g
+        potential_apex_development = self.potential_apex_development
+        potential_segment_development = self.potential_segment_development
+        temperature_modification_handle = self.growth_temperature_modification
+
+        hexose_consumption_by_growth_amount = g.property("hexose_consumption_by_growth_amount")
+        hexose_consumption_by_growth = g.property("hexose_consumption_by_growth")
+        hexose_possibly_required_for_elongation = g.property("hexose_possibly_required_for_elongation")
+        amino_acids_consumption_by_growth_amount = g.property("amino_acids_consumption_by_growth_amount")
+        amino_acids_consumption_by_growth = g.property("amino_acids_consumption_by_growth")
+        amino_acids_possibly_required_for_elongation = g.property("amino_acids_possibly_required_for_elongation")
+        resp_growth = g.property("resp_growth")
+        struct_mass_produced = g.property("struct_mass_produced")
+        root_hairs_struct_mass_produced = g.property("root_hairs_struct_mass_produced")
+        hexose_growth_demand = g.property("hexose_growth_demand")
+        amino_acids_growth_demand = g.property("amino_acids_growth_demand")
+        actual_elongation = g.property("actual_elongation")
+        actual_elongation_rate = g.property("actual_elongation_rate")
+        hexose_consumption_by_fungus = g.property("hexose_consumption_by_fungus")
+        initial_length = g.property("initial_length")
+        length = g.property("length")
+        initial_radius = g.property("initial_radius")
+        radius = g.property("radius")
+        potential_radius = g.property("potential_radius")
+        theoretical_radius = g.property("theoretical_radius")
+        initial_struct_mass = g.property("initial_struct_mass")
+        struct_mass = g.property("struct_mass")
+        initial_living_root_hairs_struct_mass = g.property("initial_living_root_hairs_struct_mass")
+        living_root_hairs_struct_mass = g.property("living_root_hairs_struct_mass")
+        label = g.property("label")
+        soil_temperature = g.property("soil_temperature")
+        temperature_modification = g.property("temperature_modification")
+
+        collar_children = self.collar_children
+
+        tot_prep = 0
+        tot_apex = 0
+        tot_segment = 0
+
+        # We simulate the development of all apices and segments in the MTG:
+        for v in post_order2(g, 1):
+            t1 = time.time()
+
+            # Re-initializes different growth-related variables (e.g. potential growth variables).
+
+            # We set to 0 the growth-related variables:
+            hexose_consumption_by_growth_amount[v] = 0.
+            hexose_consumption_by_growth[v] = 0.
+            hexose_possibly_required_for_elongation[v] = 0.
+            amino_acids_consumption_by_growth_amount[v] = 0.
+            amino_acids_consumption_by_growth[v] = 0.
+            amino_acids_possibly_required_for_elongation[v] = 0.
+            resp_growth[v] = 0.
+            struct_mass_produced[v] = 0.
+            root_hairs_struct_mass_produced[v] = 0.
+            hexose_growth_demand[v] = 0.
+            amino_acids_growth_demand[v] = 0.
+            actual_elongation[v] = 0.
+            actual_elongation_rate[v] = 0.
+            hexose_consumption_by_fungus[v] = 0.
+
+            # We make sure that the initial values of length, radius and struct_mass are correctly initialized:
+            initial_length[v] = length[v]
+            initial_radius[v] = radius[v]
+            potential_radius[v] = radius[v]
+            theoretical_radius[v] = radius[v]
+            initial_struct_mass[v] = struct_mass[v]
+            initial_living_root_hairs_struct_mass[v] = living_root_hairs_struct_mass[v]
+            tot_prep += time.time() - t1
+
+            n = g.node(v)
+            if label[v] == self.label_Apex:
+                t1 = time.time()
+                # Edge case because we assign soil states only to emerged elements
+                if length[v] == 0.:
+                    parent = g.parent(v) if v not in collar_children else 1
+                    soil_temperature[v] = soil_temperature[parent]
+                # Store temperature modifications for further calls
+                temperature_modification[v] = temperature_modification_handle(soil_temperature[v])
+                potential_apex_development(apex=n)
+                tot_apex += time.time() - t1
+            
+
+            elif label[v] == self.label_Segment:
+                t1 = time.time()
+                # Store temperature modifications for further calls
+                temperature_modification[v] = temperature_modification_handle(soil_temperature[v])
+                potential_segment_development(segment=n)
+                tot_segment += time.time() - t1
+
+        print("tot_prep", tot_prep)
+        print("tot_segment", tot_segment)
+        print("tot_apex", tot_apex)
 
 
     # Function calculating the potential development of an apex:
@@ -747,12 +871,14 @@ class RootGrowthModelCoupled(*inheriting):
         # ---------------------------------------------------------------
 
         # We look at the apex of the axis to which the segment belongs (i.e. we get the last element of the axis):
-        index_apex = self.g.Axis(segment._vid)[-1]
-        apex = self.g.node(index_apex)
-        # print("For segment", segment._vid, "the terminal index is", index_apex, "and has the type", apex.label)
-        if apex.label != self.label_Apex:
-            print("ERROR: when trying to access the terminal apex of the axis of the segment", segment._vid,
-                "we obtained the element", index_apex," that is a", apex.label, "!!!")
+        apex = self.g.node(segment.axis_apex_id)
+
+        # index_apex = self.g.Axis(segment._vid)[-1]
+        # apex = self.g.node(index_apex)
+        # # print("For segment", segment._vid, "the terminal index is", index_apex, "and has the type", apex.label)
+        # if apex.label != self.label_Apex:
+        #     print("ERROR: when trying to access the terminal apex of the axis of the segment", segment._vid,
+        #         "we obtained the element", index_apex," that is a", apex.label, "!!!")
             
         # Depending on the type of the apex, we adjust the type of the segment on the same axis:
         if apex.type == self.type_Just_stopped:
@@ -915,7 +1041,7 @@ class RootGrowthModelCoupled(*inheriting):
         root_gen = g.component_roots_at_scale_iter(g.root, scale=1)
         root = next(root_gen)
         # We cover all the vertices in the MTG, from the tips to the base:
-        for vid in post_order(g, root):
+        for vid in post_order2(g, root):
 
             # n represents the current root element:
             n = g.node(vid)
@@ -1564,7 +1690,7 @@ class RootGrowthModelCoupled(*inheriting):
                                                  hexose_possibly_required_for_elongation=0.,
                                                  # Time indications:
                                                  # ------------------
-                                                 soil_temperature=7.8,  # TODO change
+                                                 soil_temperature=mother_element.soil_temperature,  # TODO change
                                                  growth_duration=self.GDs * (2 * radius) ** 2,
                                                  life_duration=self.LDs * 2. * radius * self.new_root_tissue_density,
                                                  actual_time_since_primordium_formation=0.,

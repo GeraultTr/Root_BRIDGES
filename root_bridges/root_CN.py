@@ -198,8 +198,9 @@ class RootCNUnified(*inheriting):
                                                             B=self.active_processes_B,
                                                             C=self.active_processes_C)
         
-        return np.maximum(vmax_unloading_AA_phloem * Cv_AA_phloem * phloem_exchange_surface / (
-                    self.km_unloading_AA_phloem + Cv_AA_phloem), phloem_AA * living_struct_mass / 2)
+        return np.where(vmax_unloading_AA_phloem > 0., np.minimum(vmax_unloading_AA_phloem * Cv_AA_phloem * phloem_exchange_surface / (
+                    self.km_unloading_AA_phloem + Cv_AA_phloem), phloem_AA * living_struct_mass / 2), 
+                    0.)
 
 
     # @note CONCENTRATIONS BALANCE
