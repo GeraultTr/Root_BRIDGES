@@ -1,9 +1,9 @@
 # Untouched models
-from rhizodep.root_carbon import RootCarbonModel
-from root_cynaps.root_nitrogen import RootNitrogenModel
-from rhizodep.root_growth import RootGrowthModel
-from rhizodep.root_anatomy import RootAnatomy
-from root_cynaps.root_water import RootWaterModel
+from openalea.rhizodep import RootCarbonModel
+from openalea.rootcynaps import RootNitrogenModel
+from openalea.rhizodep import RootGrowthModel
+from openalea.rootcynaps import RootAnatomy
+from openalea.rootcynaps import RootWaterModel
 
 # Utilities
 from openalea.metafspm.composite_wrapper import CompositeModel

@@ -1,4 +1,4 @@
-from rhizodep.root_growth import RootGrowthModel
+from openalea.rhizodep import RootGrowthModel
 
 from dataclasses import dataclass
 from openalea.metafspm.component_factory import *

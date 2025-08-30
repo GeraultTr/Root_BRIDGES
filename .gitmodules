@@ -1,6 +1,0 @@
-[submodule "rhizodep"]
-	path = rhizodep
-	url = git@github.com:GeraultTr/Rhizodep.git
-[submodule "root_cynaps"]
-	path = root_cynaps
-	url = git@github.com:GeraultTr/Root_CyNAPS.git

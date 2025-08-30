@@ -5,11 +5,11 @@ import numpy as np
 # Edited models
 from root_bridges.root_CN import RootCNUnified
 from root_bridges.root_growth import RootGrowthModelCoupled
-from root_bridges.soil_model import SoilModel
+from openalea.rhizodep import RhizoInputsSoilModel
 
 # Untouched models
-from rhizodep.root_anatomy import RootAnatomy
-from root_cynaps.root_water import RootWaterModel
+from openalea.rootcynaps import RootAnatomy
+from openalea.rootcynaps import RootWaterModel
 
 # Utilities
 from openalea.metafspm.composite_wrapper import CompositeModel
@@ -55,7 +55,7 @@ class Model(CompositeModel):
         self.root_anatomy = RootAnatomy(self.g, time_step, **parameters)
         self.root_water = RootWaterModel(self.g, time_step/10, **parameters)
         self.root_cn = RootCNUnified(self.g, time_step, **parameters)
-        self.soil = SoilModel(self.g, time_step, **parameters)
+        self.soil = RhizoInputsSoilModel(self.g, time_step, **parameters)
         self.soil_voxels = self.soil.voxels
 
         # LINKING MODULES

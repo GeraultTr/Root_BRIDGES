@@ -3,7 +3,7 @@ import numpy as np
 from openalea.metafspm.component_factory import *
 from openalea.metafspm.component import declare
 
-from rhizodep.root_carbon import RootCarbonModel
+from openalea.rhizodep import RootCarbonModel
 from openalea.rootcynaps import RootNitrogenModel
 
 # Deported class inheritance to include this information in the __globals__, so that it can be picked by decorators to merge the steps of all classes
