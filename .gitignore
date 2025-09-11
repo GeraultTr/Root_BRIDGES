@@ -67,3 +67,11 @@ nosetests.xml
 
 .idea
 .ipynb_checkpoints
+
+
+# Ignore Python cache dirs
+__pycache__/
+*.py[cod]
+
+# Ignore egg-info
+*.egg-info/

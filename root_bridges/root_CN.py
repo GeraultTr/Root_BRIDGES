@@ -184,7 +184,10 @@ class RootCNUnified(*inheriting):
                                                                     B=self.passive_processes_B,
                                                                     C=self.passive_processes_C)
 
-        return diffusion_phloem * (np.maximum(0, (phloem_AA * living_struct_mass) / phloem_volume) - np.maximum(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
+        flux = diffusion_phloem * (np.maximum(0, (phloem_AA * living_struct_mass) / phloem_volume) - np.maximum(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
+
+
+        return np.where(flux > 0., flux, 0.)
 
 
     @rate

@@ -32,9 +32,20 @@ class RootGrowthModelCoupled(*inheriting):
                                                     variable_type="input", by="model_shoot", state_variable_type="descriptor", edit_by="user")
 
     # STATE VARIABLES
+    growing_zone_amino_acids: float = declare(default=0., unit="mol.g-1", unit_comment="", description="Hexose availability in the growing zone", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_growth", state_variable_type="NonInertialExtensive", edit_by="user")
     amino_acids_consumption_by_growth: float = declare(default=0., unit="mol.s-1", unit_comment="", description="amino_acids consumption rate by growth processes", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_growth", state_variable_type="extensive", edit_by="user")
+    hexose_growth_regulation: float = declare(default=0., unit="dimensionless", unit_comment="", description="", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_growth", state_variable_type="NonInertialIntensive", edit_by="user")
+    AA_growth_regulation: float = declare(default=0., unit="dimensionless", unit_comment="", description="", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_growth", state_variable_type="NonInertialIntensive", edit_by="user")
+                                                    
+    
     # PARAMETERS
     Km_elongation_amino_acids: float = declare(default=1250 * 1e-6 / 5, unit="mol.g-1", unit_comment="of amino_acids", description="Affinity constant for root elongation regarding amino_acids consumption",
                                                     min_value="", max_value="", value_comment="TODO : actualize", references="According to Barillot et al. (2016b): Km for root growth is 1250 umol C g-1 for sucrose. According to Gauthier et al (2020): Km for regulation of the RER by sucrose concentration in hz = 100-150 umol C g-1", DOI="",
@@ -42,8 +53,11 @@ class RootGrowthModelCoupled(*inheriting):
     Km_nodule_thickening_amino_acids: float = declare(default=1250 * 1e-6 / 5. * 100, unit="mol.g-1", unit_comment="of amino_acids", description="Affinity constant for nodule thickening regarding amino_acids consumption", 
                                                     min_value="", max_value="", value_comment="Km_elongation * 100, TODO : actualize", references="", DOI="",
                                                     variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
-    struct_mass_N_content: float = declare(default=0.03 / 14, unit="mol.g-1", unit_comment="of organic nitrogen", description="organic nitrogen content of structural mass",
-                                                    min_value="", max_value="", value_comment="Increased from 3% to consider active protein requirements in structural mass", references="We assume that the structural mass contains 3% of N. (??)", DOI="",
+    struct_mass_N_content: float = declare(default=0.0173 / 14, unit="mol.g-1", unit_comment="of organic nitrogen", description="organic nitrogen content of structural mass",
+                                                    min_value="", max_value="", value_comment="", references="Ort et al. 2013", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    struct_mass_N_content_max: float = declare(default=0.035 / 14, unit="mol.g-1", unit_comment="of organic nitrogen", description="organic nitrogen content of structural mass",
+                                                    min_value="", max_value="", value_comment="Max reported content", references="Shi et al. 2009", DOI="https://doi.org/10.2136/sssaj2009.0002",
                                                     variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
     yield_growth_N: float = declare(default=1., unit="adim", unit_comment="mol of N per mol of C used for structural mass", description="Growth yield of amino acids", 
                                                     min_value="", max_value="", value_comment="No deamination considered during biosynthesis, so we stick to 1.", references="", DOI="",
@@ -74,6 +88,8 @@ class RootGrowthModelCoupled(*inheriting):
             
             self.next_adventitious_primordium =  min(self.adventitous_primordia_to_emerge, key=self.adventitous_primordia_to_emerge.get)
 
+        # Intermediate parameter computed here because fields do not support it
+        self.prop_C_from_amino_acids = self.r_C_AA * self.struct_mass_N_content / self.r_Nm_AA / (self.struct_mass_C_content)
 
  
 
@@ -544,7 +560,7 @@ class RootGrowthModelCoupled(*inheriting):
                 # The corresponding potential elongation of the apex is calculated:
                 p["potential_length"][v] = self.elongated_length_opt(p, v, initial_length=p["initial_length"][v],
                                                               radius=p["initial_radius"][v],
-                                                              C_hexose_root=p["growing_zone_C_hexose_root"][v],
+                                                              C_hexose_root=p["growing_zone_C_hexose_root"][v], amino_acids=p["growing_zone_amino_acids"][v],
                                                               elongation_time_in_seconds=p["thermal_potential_time_since_emergence"][v])
                 # Last, if ArchiSimple has been chosen as the growth model:
                 if self.simple_growth_duration:
@@ -578,7 +594,7 @@ class RootGrowthModelCoupled(*inheriting):
                 # The corresponding elongation of the apex is calculated:
                 p["potential_length"][v] = self.elongated_length_opt(p, v, initial_length=p["initial_length"][v],
                                                               radius=p["initial_radius"][v],
-                                                              C_hexose_root=p["growing_zone_C_hexose_root"][v],
+                                                              C_hexose_root=p["growing_zone_C_hexose_root"][v], amino_acids=p["growing_zone_amino_acids"][v],
                                                               elongation_time_in_seconds=p["thermal_potential_time_since_emergence"][v])
 
                 # If ArchiSimple has been chosen as the growth model:
@@ -621,7 +637,7 @@ class RootGrowthModelCoupled(*inheriting):
             self.calculating_supply_for_elongation_opt(p, v)
             # The corresponding potential elongation of the apex is calculated:
             p["potential_length"][v] = self.elongated_length_opt(p, v, initial_length=p["length"][v], radius=p["radius"][v],
-                                                          C_hexose_root=p["growing_zone_C_hexose_root"][v],
+                                                          C_hexose_root=p["growing_zone_C_hexose_root"][v], amino_acids=p["growing_zone_amino_acids"][v],
                                                           elongation_time_in_seconds=time_step * temperature_time_adjustment)
             # And the new element returned by the function corresponds to the modified apex:
             new_apex_id.append(v)
@@ -666,7 +682,7 @@ class RootGrowthModelCoupled(*inheriting):
                     self.calculating_supply_for_elongation_opt(p, v)
                     # And the potential elongation of the apex before growth stopped is calculated:
                     p["potential_length"][v] = self.elongated_length_opt(p, v, initial_length=p["length"][v], radius=p["radius"][v],
-                                                                  C_hexose_root=p["growing_zone_C_hexose_root"][v],
+                                                                  C_hexose_root=p["growing_zone_C_hexose_root"][v], amino_acids=p["growing_zone_amino_acids"][v],
                                                                   elongation_time_in_seconds=time_step * temperature_time_adjustment - p["thermal_time_since_growth_stopped"][v])
                     # VERIFICATION:
                     if time_step * temperature_time_adjustment - p["thermal_time_since_growth_stopped"][v] < 0.:
@@ -758,7 +774,7 @@ class RootGrowthModelCoupled(*inheriting):
                 potential_elongation = self.EL * 2. * radius * elongation_time_in_seconds
                 elongation = potential_elongation * michaelis_menten_limitation
             else:
-                print(f"For element {element._vid}, no elongation, negative concentrations!! ", C_hexose_root, element.AA, element.struct_mass)
+                print(f"For element {element._vid} order {element.root_order}, no elongation, negative concentrations: ", C_hexose_root, element.AA, element.struct_mass)
                 elongation = 0.
         
         # We calculate the new potential length corresponding to this elongation:
@@ -770,7 +786,7 @@ class RootGrowthModelCoupled(*inheriting):
 
 
     # Function for calculating root elongation:
-    def elongated_length_opt(self, p, v, initial_length: float, radius: float, C_hexose_root: float, elongation_time_in_seconds: float):
+    def elongated_length_opt(self, p, v, initial_length: float, radius: float, C_hexose_root: float, amino_acids:float, elongation_time_in_seconds: float):
         """
         This function computes a new length (m) based on the elongation process described by ArchiSimple and regulated by
         the available concentration of hexose.
@@ -789,15 +805,20 @@ class RootGrowthModelCoupled(*inheriting):
         else:
             # Otherwise, we additionally consider a limitation of the elongation according to the local concentration of hexose,
             # based on a Michaelis-Menten formalism:
-            if C_hexose_root > self.C_hexose_min_for_elongation or p["AA"][v] > 0:
+            if C_hexose_root > self.C_hexose_min_for_elongation or amino_acids > 0:
                 # michaelis_menten_limitation = ((1 + self.Km_elongation) / C_hexose_root) * ((1 + self.Km_elongation_amino_acids) / p["AA)
-                michaelis_menten_limitation = ((C_hexose_root / (C_hexose_root + self.Km_elongation)) + (p["AA"][v] / (p["AA"][v] + self.Km_elongation_amino_acids))) / 2
+                michaelis_menten_limitation = ((1-self.prop_C_from_amino_acids) * C_hexose_root / (C_hexose_root + self.Km_elongation)) + (self.prop_C_from_amino_acids * amino_acids / (amino_acids + self.Km_elongation_amino_acids))
                 if debug: print("MM", michaelis_menten_limitation)
                 potential_elongation = self.EL * 2. * radius * elongation_time_in_seconds
                 elongation = potential_elongation * michaelis_menten_limitation
             else:
-                print(f"For element {v}, no elongation, negative concentrations!! ", C_hexose_root, p["AA"][v], p["struct_mass"][v])
+                # TP to make debugging more readable
+                if debug: print(f"For element {v} order {p['root_order'][v]} type {p['type'][v]} label {p['label'][v]}, no elongation, negative concentrations!! ", C_hexose_root, amino_acids, p["struct_mass"][v])
                 elongation = 0.
+                
+            p["hexose_growth_regulation"][v] = ((1-self.prop_C_from_amino_acids) * C_hexose_root / (C_hexose_root + self.Km_elongation))
+            p["AA_growth_regulation"][v] = (self.prop_C_from_amino_acids * amino_acids / (amino_acids + self.Km_elongation_amino_acids))
+
         
         # We calculate the new potential length corresponding to this elongation:
         new_length = initial_length + elongation
@@ -1028,11 +1049,13 @@ class RootGrowthModelCoupled(*inheriting):
         # We record the average concentration in hexose of the whole zone of hexose supply contributing to elongation:
         if p["struct_mass_contributing_to_elongation"][v] > 0.:
             p["growing_zone_C_hexose_root"][v] = p["hexose_possibly_required_for_elongation"][v] / p["struct_mass_contributing_to_elongation"][v]
+            p["growing_zone_amino_acids"][v] = p["amino_acids_possibly_required_for_elongation"][v] / p["struct_mass_contributing_to_elongation"][v]
         else:
             print("!!! ERROR: the mass contributing to elongation in element", v, "of type", p["type"][v], "is",
                 p["struct_mass_contributing_to_elongation"][v],
                 "g, and its structural mass is", p["struct_mass"][v], "g!")
             p["growing_zone_C_hexose_root"][v] = 0.
+            p["growing_zone_amino_acids"][v] = 0.
 
         p["list_of_elongation_supporting_elements"][v] = list_of_elongation_supporting_elements
         p["list_of_elongation_supporting_elements_hexose"][v] = list_of_elongation_supporting_elements_hexose
@@ -1678,14 +1701,12 @@ class RootGrowthModelCoupled(*inheriting):
             # weight per volume (g m-3) and struct_mass_C_content is the amount of C per gram of dry structural mass (mol_C g-1):
 
             # EDIT : We also account for the ratio between the two C sources, hexose and amino acids to compute the demand
-            if n.C_hexose_root > 0 or n.AA > 0:
-                hexose_C_in_total = n.C_hexose_root * 6 / (n.C_hexose_root * 6 + n.AA * self.r_C_AA)
-            else:
-                hexose_C_in_total = 0.5
+            amino_acids_growth_demand = (potential_volume - initial_volume) * n.root_tissue_density * self.struct_mass_N_content / self.yield_growth_N / self.r_Nm_AA
+            C_brought_by_amino_acids = amino_acids_growth_demand * self.r_C_AA
 
-            C_growth_demand = (potential_volume - initial_volume) * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth
+            C_growth_demand = max(0., ((potential_volume - initial_volume) * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth) - C_brought_by_amino_acids)
 
-            n.hexose_growth_demand = C_growth_demand * hexose_C_in_total / 6.
+            n.hexose_growth_demand = C_growth_demand / 6.
             # We verify that this potential growth demand is positive:
             if n.hexose_growth_demand < 0.:
                 print("!!! ERROR: a negative growth demand of", n.hexose_growth_demand,
@@ -1701,9 +1722,7 @@ class RootGrowthModelCoupled(*inheriting):
             elif n.hexose_growth_demand == 0.:
                 continue
             
-            amino_acids_growth_demand_C = C_growth_demand * (1 - hexose_C_in_total) / self.r_C_AA
-            amino_acids_growth_demand_N = (potential_volume - initial_volume) * n.root_tissue_density * self.struct_mass_N_content / self.yield_growth_N / self.r_Nm_AA
-            n.amino_acids_growth_demand = max(amino_acids_growth_demand_C, amino_acids_growth_demand_N)
+            n.amino_acids_growth_demand = amino_acids_growth_demand
 
             # We verify that this potential growth demand is positive:
             if n.amino_acids_growth_demand < 0.:
@@ -1805,23 +1824,31 @@ class RootGrowthModelCoupled(*inheriting):
                 volume_after_elongation = volume_from_radius_and_length(n, n.initial_radius, n.length)
 
                 # We suppose that carbon is taken equally from hexose and amino acids since we supperimpose many metabolic processes here
-                hexose_consumption_ratio_in_C = 6 * (hexose_available_for_elongation) / (self.r_C_AA * amino_acids_possibly_required_for_elongation  
-                                                                                        + 6 * hexose_available_for_elongation )
-                # hexose_consumption_ratio_in_C = 0.5
-                
-                C_consumption_by_elongation = (volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth
-                N_consumption_by_elongation = (volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_N_content / self.yield_growth_N
 
-                # If fixating more C than requiered to only sustain N
-                if C_consumption_by_elongation * (1 - hexose_consumption_ratio_in_C) > N_consumption_by_elongation * (self.r_C_AA / self.r_Nm_AA):
-                    if debug: print("BONUS UP CONSUMPTION OF AMINO ACIDS", (1-hexose_consumption_ratio_in_C))
-                    amino_acids_consumption_by_elongation = C_consumption_by_elongation * (1 - hexose_consumption_ratio_in_C) / self.r_C_AA
-                    hexose_consumption_by_elongation = C_consumption_by_elongation * hexose_consumption_ratio_in_C / 6
-                # Else we condition by sustaining minimal N costs
-                else:
-                    if debug: print("HIGHER CONSUMPTION OF AMINO ACIDS TO SUSTAIN C:N RATIO", (1-hexose_consumption_ratio_in_C))
-                    amino_acids_consumption_by_elongation = N_consumption_by_elongation / self.r_Nm_AA
-                    hexose_consumption_by_elongation = (C_consumption_by_elongation - amino_acids_consumption_by_elongation * self.r_C_AA) / 6
+                # We set the amino acid consumption from available metabolites to be bounded by the maximal N content observed experimentally by XX:
+                max_amino_acid_consumption_for_growth = (volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_N_content_max / self.yield_growth_N / self.r_Nm_AA
+                amino_acids_consumption_by_elongation = min(amino_acids_possibly_required_for_elongation, max_amino_acid_consumption_for_growth)
+
+                C_brought_by_amino_acids = amino_acids_consumption_by_elongation * self.r_C_AA
+                hexose_consumption_by_elongation = (((volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth) - C_brought_by_amino_acids) / 6
+                
+                # hexose_consumption_ratio_in_C = 6 * (hexose_available_for_elongation) / (self.r_C_AA * amino_acids_possibly_required_for_elongation  
+                #                                                                         + 6 * hexose_available_for_elongation )
+                # # hexose_consumption_ratio_in_C = 0.5
+                
+                # C_consumption_by_elongation = (volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth
+                # N_consumption_by_elongation = (volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_N_content / self.yield_growth_N
+
+                # # If fixating more C than requiered to only sustain N
+                # if C_consumption_by_elongation * (1 - hexose_consumption_ratio_in_C) > N_consumption_by_elongation * (self.r_C_AA / self.r_Nm_AA):
+                #     if debug: print("BONUS UP CONSUMPTION OF AMINO ACIDS", (1-hexose_consumption_ratio_in_C))
+                #     amino_acids_consumption_by_elongation = C_consumption_by_elongation * (1 - hexose_consumption_ratio_in_C) / self.r_C_AA
+                #     hexose_consumption_by_elongation = C_consumption_by_elongation * hexose_consumption_ratio_in_C / 6
+                # # Else we condition by sustaining minimal N costs
+                # else:
+                #     if debug: print("HIGHER CONSUMPTION OF AMINO ACIDS TO SUSTAIN C:N RATIO", (1-hexose_consumption_ratio_in_C))
+                #     amino_acids_consumption_by_elongation = N_consumption_by_elongation / self.r_Nm_AA
+                #     hexose_consumption_by_elongation = (C_consumption_by_elongation - amino_acids_consumption_by_elongation * self.r_C_AA) / 6
 
                 # We store this elongation information to expose it to other modules
                 self.step_elongating_elements.append(n._vid)
