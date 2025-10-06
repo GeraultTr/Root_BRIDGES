@@ -1,0 +1,25 @@
+name: rootbridges
+channels:
+  - openalea3
+  - conda-forge
+dependencies:
+  - python
+  - scipy
+  - numpy
+  - openalea.mtg
+  # metafspm
+  - pyyaml
+  # fspm-utility
+  - openpyxl
+  - pandas
+  - salib
+  - xarray
+  - dask
+  - pyvista
+  - imageio
+  - imageio-ffmpeg
+  - matplotlib
+  - brokenaxes
+  - pint
+  - trimesh
+  - openalea.plantgl

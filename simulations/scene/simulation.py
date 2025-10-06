@@ -3,8 +3,8 @@ import multiprocessing as mp
 import time
 
 # Model packages
-import root_bridges
-from root_bridges.root_bridges_no_soil import RootBRIDGES
+import openalea.rootbridges
+from openalea.rootbridges import RootBRIDGES
 from openalea.rhizosoil.model import RhizoSoil
 
 # Utility packages
@@ -57,7 +57,7 @@ if __name__ == "__main__":
                 
             p = mp.Process(target=play_Orchestra, kwargs=dict(scene_name=scenario_name, output_folder=custom_output_folder, plant_models=[RootBRIDGES], plant_scenarios=[scenario], 
                                                             soil_model=RhizoSoil, soil_scenario=scenario,
-                                                            translator_path=root_bridges.__path__[0],
+                                                            translator_path=openalea.rootbridges.__path__[0],
                                                             logger_class=Logger, log_settings=Logger.light_log,
                                                             scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density,
                                                             time_step=3600, n_iterations=24))
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         else:
             play_Orchestra(scene_name=scenario_name, output_folder=custom_output_folder, plant_models=[RootBRIDGES], plant_scenarios=[scenario], 
                                 soil_model=RhizoSoil, soil_scenario=scenario,
-                                translator_path=root_bridges.__path__[0],
+                                translator_path=openalea.rootbridges.__path__[0],
                                 logger_class=Logger, log_settings=Logger.heavy_log, heavy_log_period=1,
                                 scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density, row_spacing=row_spacing,
                                 time_step=3600, n_iterations=24*80)
