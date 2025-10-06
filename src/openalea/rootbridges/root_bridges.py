@@ -1,10 +1,10 @@
-import root_bridges
+import openalea.rootbridges
 
 import numpy as np
 
 # Edited models
-from root_bridges.root_CN import RootCNUnified
-from root_bridges.root_growth import RootGrowthModelCoupled
+from openalea.rootbridges import RootCNUnified
+from openalea.rootbridges import RootGrowthModelCoupled
 from openalea.rhizodep import RhizoInputsSoilModel
 
 # Untouched models

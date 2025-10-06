@@ -4,8 +4,8 @@ from openalea.metafspm.utils import ArrayDict, mtg_to_arraydict
 import time
 
 # Edited models
-from root_bridges.root_CN import RootCNUnified
-from root_bridges.root_growth import RootGrowthModelCoupled
+from openalea.rootbridges import RootCNUnified
+from openalea.rootbridges import RootGrowthModelCoupled
 
 # Untouched models
 from openalea.rootcynaps import RootAnatomy
