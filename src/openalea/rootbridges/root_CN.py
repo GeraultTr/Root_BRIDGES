@@ -50,7 +50,7 @@ class RootCNUnified(*inheriting):
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     
     # @note PARAMETERS
-    r_hexose_AA: float = declare(default=4.5/6, unit="adim", unit_comment="mol of hexose per mol of amino acids in roots", description="stoechiometric ratio during amino acids synthesis for hexose consumption", 
+    r_hexose_AA: float = declare(default=5/6, unit="adim", unit_comment="mol of hexose per mol of amino acids in roots", description="stoechiometric ratio during amino acids synthesis for hexose consumption", 
                                 min_value="", max_value="", value_comment="", references="we hypothesize from Yemm and Willis 1956 that synthetized soluble amino acids are mainly composed of glutamine and asparagine", DOI="",
                                 variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
     r_Nm_AA: float =     declare(default=1.4, unit="adim", unit_comment="mol of N per mol of amino acids", description="concentration stoechiometric ratio between mineral nitrogen and amino acids in roots", 
@@ -93,6 +93,10 @@ class RootCNUnified(*inheriting):
 
         self.solute_configs["C_sucrose_root"] = {
         "solute_massic_concentration_prop": "C_sucrose_root",
+        "solute_massic_concentration_symplasm": "hexose_diffusion_from_phloem",
+        "diffusive_flux_name": "hexose_diffusion_from_phloem",
+        "diffusive_flux_conversion": - 1 /2,
+        "diffusion_parameter": "diffusion_phloem",
         "conductive_element_volume_prop": "phloem_volume",
         "water_flux_prop": "axial_export_water_up_phloem",
         "radial_solute_flux": lambda hexose_diffusion_from_phloem, hexose_active_production_from_phloem, phloem_hexose_exudation, sucrose_loading_in_phloem, phloem_hexose_uptake_from_soil : (
@@ -104,7 +108,7 @@ class RootCNUnified(*inheriting):
         "flux_shoot_boundary": lambda props: props["sucrose_input_rate"][1],
         "boundary_shoot_solute_concentration": lambda props: props["Cv_sucrose_phloem_collar"][1],
         "solute_flux_to_shoot": "sucrose_root_to_shoot_phloem",
-        "solute_volumic_concentration_bounds": (10, 4e3),
+        "solute_volumic_concentration_bounds": (1e-4, 3e3),
         }
 
     # @note PROCESSES
@@ -150,9 +154,17 @@ class RootCNUnified(*inheriting):
                                                                 B=self.phloem_unloading_B,
                                                                 C=self.phloem_unloading_C)
         
-        return np.where((length <= 0.) | (type == self.type_Just_dead) | (type == self.type_Dead), 0.,
-                        2. * phloem_permeability * (Cv_sucrose_root - Cv_hexose_root / 2.) * phloem_exchange_surface)
+        flux = phloem_permeability * (np.maximum(0, Cv_sucrose_root) - np.maximum(0, Cv_hexose_root / 2.)) * phloem_exchange_surface
 
+        # return np.where(flux > 0., flux, 0.)
+        return flux
+
+        # return np.where((length <= 0.) | (type == self.type_Just_dead) | (type == self.type_Dead), 0.,
+        #         2. * phloem_permeability * (Cv_sucrose_root - Cv_hexose_root / 2.) * phloem_exchange_surface)
+
+
+
+   
     @rate
     def _hexose_active_production_from_phloem(self, type, C_sucrose_root, length, phloem_exchange_surface,
                                               hexose_consumption_by_growth, soil_temperature):
@@ -174,22 +186,21 @@ class RootCNUnified(*inheriting):
     
 
     @rate
-    def _diffusion_AA_phloem(self, length, type, amino_acids_consumption_by_growth, AA, phloem_AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, phloem_volume):
+    def _diffusion_AA_phloem(self, amino_acids_consumption_by_growth, AA, phloem_AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, phloem_volume):
         """ Passive radial diffusion between phloem and cortex through plasmodesmata """
-        
-        Cv_AA_phloem = (phloem_AA * living_struct_mass) / phloem_volume
-        Cv_AA_symplasm = (AA * living_struct_mass) / symplasmic_volume
 
-        phloem_permeability = self.diffusion_phloem * (1 + amino_acids_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
+        permeability_phloem_AA = self.permeability_phloem_AA * (1 + amino_acids_consumption_by_growth / (self.reference_rate_of_AA_consumption_by_growth))
 
-        phloem_permeability *= self.temperature_modification(soil_temperature=soil_temperature,
+        permeability_phloem_AA *= self.temperature_modification(soil_temperature=soil_temperature,
                                                                     T_ref=self.passive_processes_T_ref,
                                                                     A=self.passive_processes_A,
                                                                     B=self.passive_processes_B,
                                                                     C=self.passive_processes_C)
 
-        return np.where((length <= 0.) | (type == self.type_Just_dead) | (type == self.type_Dead), 0.,
-                        phloem_permeability * (Cv_AA_phloem - Cv_AA_symplasm) * phloem_exchange_surface)
+        flux = permeability_phloem_AA * (np.maximum(0, (phloem_AA * living_struct_mass) / phloem_volume) - np.maximum(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
+
+        # return np.where(flux > 0., flux, 0.)
+        return flux
 
 
     @rate
@@ -240,7 +251,7 @@ class RootCNUnified(*inheriting):
                 - hexose_immobilization_as_reserve
                 - deficit_hexose_root
                 - AA_synthesis * self.r_hexose_AA
-                + AA_catabolism / self.r_hexose_AA
+                + AA_catabolism * self.r_hexose_AA
                 - N_metabolic_respiration / 6.)
         
         deficit = - balance * living_struct_mass / self.time_step
@@ -254,24 +265,70 @@ class RootCNUnified(*inheriting):
     def _AA(self, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
                   amino_acids_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA) -> tuple[float, str, float]:
         
-        balance =  AA + (self.time_step / living_struct_mass) * (
-                diffusion_AA_phloem
+        f = 1e13 # arbitrary
+        diffusion_AA_phloem = diffusion_AA_phloem * f
+        unloading_AA_phloem = unloading_AA_phloem * f
+        import_AA = import_AA * f
+        AA_synthesis = AA_synthesis * f
+        storage_catabolism = storage_catabolism * f
+        diffusion_AA_soil = diffusion_AA_soil * f
+        export_AA = export_AA * f
+        amino_acids_consumption_by_growth = amino_acids_consumption_by_growth * f
+        storage_synthesis = storage_synthesis * f
+        AA_catabolism = AA_catabolism * f
+        deficit_AA = deficit_AA * f
+
+        inflow = (diffusion_AA_phloem
                 + unloading_AA_phloem
                 + import_AA
-                - diffusion_AA_soil
-                - export_AA
                 + AA_synthesis
-                - amino_acids_consumption_by_growth
-                - storage_synthesis * self.r_AA_stor
-                + storage_catabolism / self.r_AA_stor
-                - AA_catabolism
-                - deficit_AA)
+                + storage_catabolism * self.r_AA_stor)
         
-        deficit = - balance * living_struct_mass / self.time_step
-        deficit = np.where(deficit > 1e-20, deficit, 0.)
-        balance = np.maximum(balance, 0.)
+        outflow = (diffusion_AA_soil
+                + export_AA
+                + amino_acids_consumption_by_growth
+                + storage_synthesis * self.r_AA_stor
+                + AA_catabolism
+                + deficit_AA)
+        
+        netflow = inflow - outflow
+
+        living_struct_mass = 1e6 * living_struct_mass # µg
+
+        derivative = (self.time_step / living_struct_mass) * netflow
+        derivative = derivative * 1e-7
+        raw_balance = AA + derivative
+
+        is_neg = raw_balance < 0.0
+        deficit = np.where(is_neg, -raw_balance * (living_struct_mass / self.time_step), 0.0)
+        # deficit = np.where(deficit > 1e-20, deficit, 0.0)
+
+        balance = np.where(is_neg, 0.0, raw_balance)
 
         return balance, 'deficit_AA', deficit
+
+    # @state
+    # def _AA(self, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+    #               amino_acids_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA) -> tuple[float, str, float]:
+        
+    #     balance =  AA + (self.time_step / living_struct_mass) * (
+    #             diffusion_AA_phloem
+    #             + unloading_AA_phloem
+    #             + import_AA
+    #             - diffusion_AA_soil
+    #             - export_AA
+    #             + AA_synthesis
+    #             - amino_acids_consumption_by_growth
+    #             - storage_synthesis * self.r_AA_stor
+    #             + storage_catabolism * self.r_AA_stor
+    #             - AA_catabolism
+    #             - deficit_AA)
+        
+    #     deficit = - balance * living_struct_mass / self.time_step
+    #     deficit = np.where(deficit > 1e-20, deficit, 0.)
+    #     balance = np.maximum(balance, 0.)
+
+    #     return balance, 'deficit_AA', deficit
 
     
     @state
