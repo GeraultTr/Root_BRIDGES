@@ -19,6 +19,15 @@ class RootCNUnified(*inheriting):
     Cv_sucrose_phloem_collar: float = declare(default=950, unit="mol.m-3", unit_comment="", description="Sucrose volumic concentration in phloem at collar point", 
                                        min_value=0, max_value=1200, value_comment="", references="Winter et al. 1992", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
+    mstruct_axis_shoot: float = declare(default=0.0541, unit="g", unit_comment="", description="Shoot initial structural mass", 
+                                       min_value=0, max_value=1200, value_comment="", references="", DOI="",
+                                        variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
+    sucrose_phloem_shoot: float = declare(default=17 / 12 / 1e6, unit="mol", unit_comment="of sucrose", description="", 
+                                       min_value=0, max_value=1200, value_comment="", references="", DOI="",
+                                        variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
+    AA_phloem_shoot: float = declare(default=1 / 12 / 1e6, unit="mol", unit_comment="of amino acids", description="", 
+                                       min_value=0, max_value=1200, value_comment="", references="", DOI="",
+                                        variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
 
     # FROM GROWTH MODEL
     amino_acids_consumption_by_growth: float = declare(default=0., unit="mol.s-1", unit_comment="", description="amino_acids consumption rate by growth processes", 
@@ -39,7 +48,7 @@ class RootCNUnified(*inheriting):
     
     # @note SUMMED STATE VARIABLES
 
-    sucrose_root_to_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of sucrose", description="",
+    sucrose_root_to_shoot_phloem: float =       declare(default=-1e-6, unit="mol.time_step-1", unit_comment="of sucrose", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     Cv_sucrose_average: float =                   declare(default=1., unit="mol.m-3", unit_comment="of amino acids", description="", 
@@ -260,7 +269,6 @@ class RootCNUnified(*inheriting):
 
         return balance, 'deficit_hexose_root', deficit
 
-        
     @state
     def _AA(self, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
                   amino_acids_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA) -> tuple[float, str, float]:

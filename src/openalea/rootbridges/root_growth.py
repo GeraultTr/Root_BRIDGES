@@ -2427,6 +2427,8 @@ class RootGrowthModelCoupled(*inheriting):
         :param nil_properties: if True, the main properties of the child will be 0
         :return: the new child element
         """
+        if edge_type == "<":
+            print("new element formed by elongation")
 
         # TODO# FOR TRISTAN: When working with a dynamic root structure, you will need to specify in this function
         #  "ADDING_A_CHILD" your new variables that will either be set to 0 (nil properties) or be equal to that of the mother
