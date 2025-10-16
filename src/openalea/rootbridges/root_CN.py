@@ -71,7 +71,13 @@ class RootCNUnified(*inheriting):
     respi_costs_mineralN_reduction: float = declare(default=1.98, unit="adim", unit_comment="mol of C per mol of N", description="Respiratory of active imports in root.", 
                                 min_value="", max_value="", value_comment="", references="Robinson 2001; Barillot et al., 2016", DOI="",
                                 variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
-
+    massic_reference_rate_of_AA_consumption_by_growth: float = declare(default=2.78e-10, unit="mol.s-1.g-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
+                                                min_value="", max_value="", value_comment="From RhizoDep parameter, applied 5e-13 * 6 * 12 / 0.44 * 0.015 / 14 / 1.4", references="Reference consumption rate of hexose for growth for a given root element (used to multiply the reference unloading rate when growth has consumed hexose)", DOI="",
+                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+    massic_reference_rate_of_hexose_consumption_by_growth: float = declare(default=1.39e-9, unit="mol.s-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
+                                                min_value="", max_value="", value_comment="", references="Reference consumption rate of hexose for growth for a given root element (used to multiply the reference unloading rate when growth has consumed hexose)", DOI="",
+                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+    
     
     def __init__(self, g, time_step: int,  **scenario: dict):
         """
@@ -148,14 +154,8 @@ class RootCNUnified(*inheriting):
         Cv_sucrose_root = C_sucrose_root * living_struct_mass / phloem_volume
         Cv_hexose_root = C_hexose_root * living_struct_mass / symplasmic_volume
 
-        # if Cv_sucrose_root <= Cv_hexose_root / 2:
-        #     print("sucrose limits", Cv_sucrose_root, Cv_hexose_root / 2., living_struct_mass, hexose_consumption_by_growth )
-        #     return 0
-        # else:
-        # print(phloem_volume, symplasmic_volume)
-        # print("gradient", Cv_sucrose_root,  Cv_hexose_root / 2., living_struct_mass, hexose_consumption_by_growth)
         phloem_permeability = self.diffusion_phloem * (1 + hexose_consumption_by_growth /
-                                                            self.reference_rate_of_hexose_consumption_by_growth)
+                                                            (living_struct_mass * self.massic_reference_rate_of_hexose_consumption_by_growth))
 
         phloem_permeability *= self.temperature_modification(soil_temperature=soil_temperature,
                                                                 T_ref=self.phloem_unloading_T_ref,
@@ -198,7 +198,7 @@ class RootCNUnified(*inheriting):
     def _diffusion_AA_phloem(self, amino_acids_consumption_by_growth, AA, phloem_AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, phloem_volume):
         """ Passive radial diffusion between phloem and cortex through plasmodesmata """
 
-        permeability_phloem_AA = self.permeability_phloem_AA * (1 + amino_acids_consumption_by_growth / (self.reference_rate_of_AA_consumption_by_growth))
+        permeability_phloem_AA = self.permeability_phloem_AA * (1 + amino_acids_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_AA_consumption_by_growth))
 
         permeability_phloem_AA *= self.temperature_modification(soil_temperature=soil_temperature,
                                                                     T_ref=self.passive_processes_T_ref,

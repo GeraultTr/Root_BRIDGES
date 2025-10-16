@@ -535,6 +535,7 @@ class RootGrowthModelCoupled(*inheriting):
             # Handle special delay management when adventitious emergence is controled by the shoot
             if p["type"][v] == self.type_Adventitious_root_before_emergence and self.synchronize_adventitious_emergence:
                 condition_for_axis_emergence = v == self.next_adventitious_primordium and len(p["adventitious_to_emerge"][1]) > 0
+
                 if condition_for_axis_emergence:
                     p["thermal_time_since_primordium_formation"][v] = 0
                     p["emergence_delay_in_thermal_time"][v] = p["adventitious_to_emerge"][1][0]
@@ -975,6 +976,7 @@ class RootGrowthModelCoupled(*inheriting):
 
         # We start counting the hexose at the apex:
         index = v
+        previous_index = v
 
         # We initialize a temporary variable that will be used as a counter:
         remaining_volume = supplying_volume
@@ -989,6 +991,7 @@ class RootGrowthModelCoupled(*inheriting):
                 # We make sure to include in the list of supplying elements only elements with a positive length
                 # (e.g. NOT the elements of length 0 that support seminal or adventitious roots):
                 if p["length"][index] > 0.:
+                    
                     # We add to the amount of hexose available all the hexose in the current element
                     # (EXCLUDING sugars in the living root hairs):
                     # TODO: Should the C from root hairs be used for helping roots to grow?
@@ -1007,6 +1010,37 @@ class RootGrowthModelCoupled(*inheriting):
                     list_of_elongation_supporting_elements_mass.append(p["struct_mass"][index])
                     # We subtract the volume of the current element to the remaining volume:
                     remaining_volume = remaining_volume - p["volume"][index]
+                    
+                    # edge case was not handled when the elongation zone was reaching collar.
+                    if index == 1:
+                        accessed_collar_children = [vertex_index for vertex_index in self.collar_children if vertex_index != previous_index and p["length"][vertex_index] > 0.]
+                        sum_volumes = sum([p["volume"][k] for k in accessed_collar_children])
+                        
+                        for root_child in accessed_collar_children:
+                            source_volume = min(remaining_volume * p["volume"][root_child] / sum_volumes, p["volume"][root_child])
+                            hexose_contribution = p["C_hexose_root"][root_child] * p["struct_mass"][root_child] \
+                                      * source_volume / p["volume"][root_child]
+                            amino_acids_contribution = p["AA"][index] * p["struct_mass"][root_child] \
+                                                * source_volume / p["volume"][root_child]
+                            p["hexose_possibly_required_for_elongation"][v] += hexose_contribution
+                            p["amino_acids_possibly_required_for_elongation"][v] += amino_acids_contribution
+                            p["struct_mass_contributing_to_elongation"][v] += p["struct_mass"][root_child] \
+                                                                        * source_volume / p["volume"][root_child]
+                            # We record the index of the contributing element:
+                            list_of_elongation_supporting_elements.append(root_child)
+                            # We record the amount of hexose that the current element can provide:
+                            list_of_elongation_supporting_elements_hexose.append(hexose_contribution)
+                            # We record the amount of amino acids that the current element can provide:
+                            list_of_elongation_supporting_elements_amino_acids.append(amino_acids_contribution)
+                            # We record the structural mass from which the current element contributes:
+                            list_of_elongation_supporting_elements_mass.append(
+                                p["struct_mass"][root_child] * remaining_volume / p["volume"][root_child])
+                        
+                        if remaining_volume <= sum_volumes:
+                            remaining_volume = 0.
+                        else:
+                            print("despite collar children remaining:", remaining_volume, sum_volumes)
+
 
                 # And we try to move the index to the segment preceding the current element:
                 index_attempt = Father(index, EdgeType='<')
@@ -1019,6 +1053,7 @@ class RootGrowthModelCoupled(*inheriting):
                         # Then we exit the loop here:
                         break
                 # We set the new index:
+                previous_index = index
                 index = index_attempt
                 
             # Otherwise, this is the last preceding element to consider:
