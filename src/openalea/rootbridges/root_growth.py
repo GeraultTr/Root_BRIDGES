@@ -1829,11 +1829,14 @@ class RootGrowthModelCoupled(*inheriting):
             # ---------------------------------------
 
             # We calculate the maximal possible length of the root element according to all the hexose available for elongation:
-            prossible_volume_increase_C_hexose = hexose_available_for_elongation * 6. \
-                         / (n.root_tissue_density * self.struct_mass_C_content) * self.yield_growth
-            prossible_volume_increase_C_AA = amino_acids_possibly_required_for_elongation * self.r_C_AA \
-                         / (n.root_tissue_density * self.struct_mass_C_content) * self.yield_growth
-            volume_max_C = initial_volume + prossible_volume_increase_C_hexose + prossible_volume_increase_C_AA
+            struct_mass_C_content_aa = self.struct_mass_N_content * self.r_C_AA / self.r_Nm_AA
+            struct_mass_C_content_hex = self.struct_mass_C_content - struct_mass_C_content_aa
+            volume_max_C = initial_volume + hexose_available_for_elongation * 6. \
+                         / (n.root_tissue_density * struct_mass_C_content_hex) * self.yield_growth
+            # NOTE was a mistake to sum both because leads to too much C for available N
+            # prossible_volume_increase_C_AA = amino_acids_possibly_required_for_elongation * self.r_C_AA \
+            #              / (n.root_tissue_density * struct_mass_C_content_aa) * self.yield_growth
+            # volume_max_C = initial_volume + prossible_volume_increase_C_hexose + prossible_volume_increase_C_AA
             volume_max_N = initial_volume + amino_acids_possibly_required_for_elongation * self.r_Nm_AA \
                          / (n.root_tissue_density * self.struct_mass_N_content) * self.yield_growth_N
             # We account for the minimal volume defining the most limiting factor between C and N
@@ -1849,10 +1852,12 @@ class RootGrowthModelCoupled(*inheriting):
                 # CALCULATING ACTUAL ELONGATION:
                 # If elongation is possible but is limited by the amount of hexose available:
                 if n.potential_length >= length_max:
+                    if debug: print("availability not potential", 100 * length_max / n.potential_length)
                     # Elongation is limited using all the amount of hexose available:
                     n.length = length_max
                 # Otherwise, elongation can be done up to the full potential:
                 else:
+                    if debug: print("full potential")
                     # Elongation is done up to the full potential:
                     n.length = n.potential_length
                 # The corresponding new volume is calculated:
@@ -1861,8 +1866,9 @@ class RootGrowthModelCoupled(*inheriting):
                 # We suppose that carbon is taken equally from hexose and amino acids since we supperimpose many metabolic processes here
 
                 # We set the amino acid consumption from available metabolites to be bounded by the maximal N content observed experimentally by XX:
-                max_amino_acid_consumption_for_growth = (volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_N_content_max / self.yield_growth_N / self.r_Nm_AA
-                amino_acids_consumption_by_elongation = min(amino_acids_possibly_required_for_elongation, max_amino_acid_consumption_for_growth)
+                # max_amino_acid_consumption_for_growth = (volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_N_content_max / self.yield_growth_N / self.r_Nm_AA
+                # amino_acids_consumption_by_elongation = min(amino_acids_possibly_required_for_elongation, max_amino_acid_consumption_for_growth)
+                amino_acids_consumption_by_elongation = (volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_N_content / self.yield_growth_N / self.r_Nm_AA
 
                 C_brought_by_amino_acids = amino_acids_consumption_by_elongation * self.r_C_AA
                 hexose_consumption_by_elongation = (((volume_after_elongation - initial_volume) * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth) - C_brought_by_amino_acids) / 6
