@@ -154,9 +154,11 @@ class RootCNUnified(*inheriting):
         Cv_sucrose_root = C_sucrose_root * living_struct_mass / phloem_volume
         Cv_hexose_root = C_hexose_root * living_struct_mass / symplasmic_volume
 
+        phloem_permeability = self.diffusion_phloem * (1 + hexose_consumption_by_growth /
+                                                            (self.reference_rate_of_hexose_consumption_by_growth))
         # phloem_permeability = self.diffusion_phloem * (1 + hexose_consumption_by_growth /
         #                                                     (living_struct_mass * self.massic_reference_rate_of_hexose_consumption_by_growth))
-        phloem_permeability = self.diffusion_phloem
+        # phloem_permeability = self.diffusion_phloem
 
         phloem_permeability *= self.temperature_modification(soil_temperature=soil_temperature,
                                                                 T_ref=self.phloem_unloading_T_ref,
@@ -200,7 +202,8 @@ class RootCNUnified(*inheriting):
         """ Passive radial diffusion between phloem and cortex through plasmodesmata """
 
         # permeability_phloem_AA = self.permeability_phloem_AA * (1 + amino_acids_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_AA_consumption_by_growth))
-        permeability_phloem_AA = self.permeability_phloem_AA 
+        permeability_phloem_AA = self.permeability_phloem_AA * (1 + amino_acids_consumption_by_growth / (self.reference_rate_of_AA_consumption_by_growth))
+        # permeability_phloem_AA = self.permeability_phloem_AA 
 
         permeability_phloem_AA *= self.temperature_modification(soil_temperature=soil_temperature,
                                                                     T_ref=self.passive_processes_T_ref,

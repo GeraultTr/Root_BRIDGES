@@ -1845,6 +1845,10 @@ class RootGrowthModelCoupled(*inheriting):
                     print("N is limiting volume")
                 else:
                     print("C is limiting volume")
+            # if volume_max_C > volume_max_N:
+            #     print("N is limiting volume")
+            # else:
+            #     print("C is limiting volume")
             length_max = min(volume_max_C, volume_max_N) / (pi * n.initial_radius ** 2)
 
             # If the element can elongate:
