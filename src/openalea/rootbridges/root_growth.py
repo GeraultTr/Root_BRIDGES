@@ -656,6 +656,10 @@ class RootGrowthModelCoupled(*inheriting):
                     p["thermal_time_since_growth_stopped"][v] += time_step * temperature_time_adjustment
                     # The type is (re)declared "Stopped":
                     p["type"][v] = self.type_Stopped
+                    if p["root_order"][v] == 1:
+                        print("WARNING!!")
+                        print(v, p["root_order"][v], "STOPPED definitly!")
+                        print("WARNING!!")
                     # The times are incremented:
                     p["actual_time_since_primordium_formation"][v] += time_step
                     p["thermal_time_since_primordium_formation"][v] += time_step * temperature_time_adjustment
@@ -730,6 +734,9 @@ class RootGrowthModelCoupled(*inheriting):
                 else:
                     # Then the apex is declared "Just dead":
                     p["type"][v] = self.type_Just_dead
+                    print("WARNING!!")
+                    print(v, p["root_order"][v], "Died!")
+                    print("WARNING!!")
                     # The exact time since the apex died is calculated:
                     p["thermal_time_since_death"][v] = p["thermal_time_since_growth_stopped"][v] + time_step * temperature_time_adjustment - p["life_duration"][v]
                     p["actual_time_since_death"][v] = p["thermal_time_since_death"][v] / temperature_time_adjustment
@@ -1845,11 +1852,12 @@ class RootGrowthModelCoupled(*inheriting):
                     print("N is limiting volume")
                 else:
                     print("C is limiting volume")
+            # length_max = min(volume_max_C, volume_max_N) / (pi * n.initial_radius ** 2)
+            length_max = volume_max_C / (pi * n.initial_radius ** 2)
             # if volume_max_C > volume_max_N:
-            #     print("N is limiting volume")
+            #     print("N is limiting volume", length_max / n.potential_length)
             # else:
-            #     print("C is limiting volume")
-            length_max = min(volume_max_C, volume_max_N) / (pi * n.initial_radius ** 2)
+            #     print("C is limiting volume", length_max / n.potential_length)
 
             # If the element can elongate:
             if n.potential_length > n.initial_length:

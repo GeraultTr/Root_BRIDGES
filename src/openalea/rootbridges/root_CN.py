@@ -57,6 +57,12 @@ class RootCNUnified(*inheriting):
     Cv_hexose_average: float =                   declare(default=1., unit="mol.m-3", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+    Cv_sucrose_root: float =                   declare(default=1., unit="mol.m-3", unit_comment="of amino acids", description="", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="state_variable", by="model_cn", state_variable_type="", edit_by="user")
+    Cv_hexose_root: float =                   declare(default=1., unit="mol.m-3", unit_comment="of amino acids", description="", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="state_variable", by="model_cn", state_variable_type="", edit_by="user")
     
     # @note PARAMETERS
     r_hexose_AA: float = declare(default=5/6, unit="adim", unit_comment="mol of hexose per mol of amino acids in roots", description="stoechiometric ratio during amino acids synthesis for hexose consumption", 
@@ -145,7 +151,7 @@ class RootCNUnified(*inheriting):
     
 
     @rate
-    def _hexose_diffusion_from_phloem(self, type, length, phloem_exchange_surface, C_sucrose_root, C_hexose_root,
+    def _hexose_diffusion_from_phloem(self, type, length, label, root_order, phloem_exchange_surface, C_sucrose_root, C_hexose_root,
                                              hexose_consumption_by_growth, living_struct_mass, symplasmic_volume, phloem_volume, soil_temperature):
         """
         Superimposing original, staying with a massic concentration gradient as fist approximation to avoid changing parameters
@@ -154,8 +160,11 @@ class RootCNUnified(*inheriting):
         Cv_sucrose_root = C_sucrose_root * living_struct_mass / phloem_volume
         Cv_hexose_root = C_hexose_root * living_struct_mass / symplasmic_volume
 
+        reference_rate_of_hexose_consumption_by_growth = self.reference_rate_of_hexose_consumption_by_growth
+        reference_rate_of_hexose_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_hexose_consumption_by_growth/1, reference_rate_of_hexose_consumption_by_growth)
+
         phloem_permeability = self.diffusion_phloem * (1 + hexose_consumption_by_growth /
-                                                            (self.reference_rate_of_hexose_consumption_by_growth))
+                                                            (reference_rate_of_hexose_consumption_by_growth))
         # phloem_permeability = self.diffusion_phloem * (1 + hexose_consumption_by_growth /
         #                                                     (living_struct_mass * self.massic_reference_rate_of_hexose_consumption_by_growth))
         # phloem_permeability = self.diffusion_phloem
@@ -198,11 +207,14 @@ class RootCNUnified(*inheriting):
     
 
     @rate
-    def _diffusion_AA_phloem(self, amino_acids_consumption_by_growth, AA, phloem_AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, phloem_volume):
+    def _diffusion_AA_phloem(self, label, amino_acids_consumption_by_growth, AA, phloem_AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, phloem_volume):
         """ Passive radial diffusion between phloem and cortex through plasmodesmata """
 
+        reference_rate_of_AA_consumption_by_growth = self.reference_rate_of_AA_consumption_by_growth
+        reference_rate_of_AA_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_AA_consumption_by_growth/1, reference_rate_of_AA_consumption_by_growth)
+
         # permeability_phloem_AA = self.permeability_phloem_AA * (1 + amino_acids_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_AA_consumption_by_growth))
-        permeability_phloem_AA = self.permeability_phloem_AA * (1 + amino_acids_consumption_by_growth / (self.reference_rate_of_AA_consumption_by_growth))
+        permeability_phloem_AA = self.permeability_phloem_AA * (1 + amino_acids_consumption_by_growth / (reference_rate_of_AA_consumption_by_growth))
         # permeability_phloem_AA = self.permeability_phloem_AA 
 
         permeability_phloem_AA *= self.temperature_modification(soil_temperature=soil_temperature,
@@ -388,6 +400,15 @@ class RootCNUnified(*inheriting):
         Handled by the heterogeneous axial transport model now
         """
         return
+
+    @state
+    def _Cv_sucrose_root(self, C_sucrose_root, living_struct_mass, phloem_volume):
+        return np.where(phloem_volume > 0., C_sucrose_root * living_struct_mass / np.where(phloem_volume > 0., phloem_volume, 1.), 0.)
+    
+    
+    @state
+    def _Cv_hexose_root(self, C_hexose_root, living_struct_mass, symplasmic_volume):
+        return np.where(symplasmic_volume > 0., C_hexose_root * living_struct_mass / np.where(symplasmic_volume > 0., symplasmic_volume, 1.), 0.)
     
 
         
