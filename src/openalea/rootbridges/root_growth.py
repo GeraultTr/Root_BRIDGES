@@ -68,6 +68,9 @@ class RootGrowthModelCoupled(*inheriting):
     r_C_AA: float =     declare(default=5, unit="adim", unit_comment="mol of carbon per mol of amino acids", description="concentration stoechiometric ratio between carbon and amino acids in roots", 
                                 min_value="", max_value="", value_comment="Based on glutamic acid", references="", DOI="",
                                 variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    C_AA_min_for_elongation: float = declare(default=0 * 1e-5 * (6 * 12 / 0.44) * 0.0173 / 14 / 1.4 , unit="mol.g-1", unit_comment="in mol of hexose per g of structural mass", description="Treshold hexose concentration for thikening", 
+                                                    min_value="", max_value="", value_comment="0 because not used in RhizoDep reference scenarios!", references="?", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
 
     # PARAMETERS
     synchronize_adventitious_emergence: bool = declare(default=False, unit="", unit_comment="", description="boolean to choose option where root nodal emergence depend on shoot leaf emergence dynamic", 
@@ -813,15 +816,19 @@ class RootGrowthModelCoupled(*inheriting):
         else:
             # Otherwise, we additionally consider a limitation of the elongation according to the local concentration of hexose,
             # based on a Michaelis-Menten formalism:
-            if C_hexose_root > self.C_hexose_min_for_elongation or amino_acids > 0:
+            if C_hexose_root > self.C_hexose_min_for_elongation and amino_acids > self.C_AA_min_for_elongation:
                 # michaelis_menten_limitation = ((1 + self.Km_elongation) / C_hexose_root) * ((1 + self.Km_elongation_amino_acids) / p["AA)
                 michaelis_menten_limitation = ((1-self.prop_C_from_amino_acids) * C_hexose_root / (C_hexose_root + self.Km_elongation)) + (self.prop_C_from_amino_acids * amino_acids / (amino_acids + self.Km_elongation_amino_acids))
                 if debug: print("MM", michaelis_menten_limitation)
+                # print("MM", michaelis_menten_limitation, ((1-self.prop_C_from_amino_acids) * C_hexose_root / (C_hexose_root + self.Km_elongation)), (self.prop_C_from_amino_acids * amino_acids / (amino_acids + self.Km_elongation_amino_acids)))
                 potential_elongation = self.EL * 2. * radius * elongation_time_in_seconds
                 elongation = potential_elongation * michaelis_menten_limitation
             else:
                 # TP to make debugging more readable
-                if debug: print(f"For element {v} order {p['root_order'][v]} type {p['type'][v]} label {p['label'][v]}, no elongation, negative concentrations!! ", C_hexose_root, amino_acids, p["struct_mass"][v])
+                if debug: print(f"For element {v} order {p['root_order'][v]} type {p['type'][v]} label {p['label'][v]}, no elongation, too low concentrations!! ", C_hexose_root, amino_acids, p["struct_mass"][v])
+                if p['root_order'][v] == 1:
+                    # Only look those who define the extent of the RSA
+                    print(f"For element {v} order {p['root_order'][v]} type {p['type'][v]} label {p['label'][v]}, no elongation, too low concentrations!! ", C_hexose_root, amino_acids, p["struct_mass"][v])
                 elongation = 0.
                 
             p["hexose_growth_regulation"][v] = ((1-self.prop_C_from_amino_acids) * C_hexose_root / (C_hexose_root + self.Km_elongation))
@@ -942,9 +949,10 @@ class RootGrowthModelCoupled(*inheriting):
         if n.struct_mass_contributing_to_elongation > 0.:
             n.growing_zone_C_hexose_root = n.hexose_possibly_required_for_elongation / n.struct_mass_contributing_to_elongation
         else:
+
             print("!!! ERROR: the mass contributing to elongation in element", n._vid, "of type", n.type, "is",
                 n.struct_mass_contributing_to_elongation,
-                "g, and its structural mass is", n.struct_mass, "g!")
+                "g, and its structural mass is", n.struct_mass, "g! With available resources: ", )
             n.growing_zone_C_hexose_root = 0.
 
         n.list_of_elongation_supporting_elements = list_of_elongation_supporting_elements
@@ -1004,21 +1012,22 @@ class RootGrowthModelCoupled(*inheriting):
                     # TODO: Should the C from root hairs be used for helping roots to grow?
                     hexose_contribution = p["C_hexose_root"][index] * p["struct_mass"][index]
                     amino_acids_contribution = p["AA"][index] * p["struct_mass"][index]
-                    p["hexose_possibly_required_for_elongation"][v] += hexose_contribution
-                    p["amino_acids_possibly_required_for_elongation"][v] += amino_acids_contribution
-                    p["struct_mass_contributing_to_elongation"][v] += p["struct_mass"][index]
-                    # We record the index of the contributing element:
-                    list_of_elongation_supporting_elements.append(index)
-                    # We record the amount of hexose that the current element can provide:
-                    list_of_elongation_supporting_elements_hexose.append(hexose_contribution)
-                    # We record the amount of amino acids that the current element can provide:
-                    list_of_elongation_supporting_elements_amino_acids.append(amino_acids_contribution)
-                    # We record the structural mass from which the current element contributes:
-                    list_of_elongation_supporting_elements_mass.append(p["struct_mass"][index])
-                    # We subtract the volume of the current element to the remaining volume:
-                    remaining_volume = remaining_volume - p["volume"][index]
-                    
-                    # edge case was not handled when the elongation zone was reaching collar.
+                    if hexose_contribution > 0. and amino_acids_contribution > 0.:
+                        p["hexose_possibly_required_for_elongation"][v] += hexose_contribution
+                        p["amino_acids_possibly_required_for_elongation"][v] += amino_acids_contribution
+                        p["struct_mass_contributing_to_elongation"][v] += p["struct_mass"][index]
+                        # We record the index of the contributing element:
+                        list_of_elongation_supporting_elements.append(index)
+                        # We record the amount of hexose that the current element can provide:
+                        list_of_elongation_supporting_elements_hexose.append(hexose_contribution)
+                        # We record the amount of amino acids that the current element can provide:
+                        list_of_elongation_supporting_elements_amino_acids.append(amino_acids_contribution)
+                        # We record the structural mass from which the current element contributes:
+                        list_of_elongation_supporting_elements_mass.append(p["struct_mass"][index])
+                        # We subtract the volume of the current element to the remaining volume:
+                        remaining_volume = remaining_volume - p["volume"][index]
+                        
+                    # edge case is handled when the elongation zone reaches collar.
                     if index == 1:
                         accessed_collar_children = [vertex_index for vertex_index in self.collar_children if vertex_index != previous_index and p["length"][vertex_index] > 0.]
                         sum_volumes = sum([p["volume"][k] for k in accessed_collar_children])
@@ -1026,22 +1035,23 @@ class RootGrowthModelCoupled(*inheriting):
                         for root_child in accessed_collar_children:
                             source_volume = min(remaining_volume * p["volume"][root_child] / sum_volumes, p["volume"][root_child])
                             hexose_contribution = p["C_hexose_root"][root_child] * p["struct_mass"][root_child] \
-                                      * source_volume / p["volume"][root_child]
-                            amino_acids_contribution = p["AA"][index] * p["struct_mass"][root_child] \
+                                    * source_volume / p["volume"][root_child]
+                            amino_acids_contribution = p["AA"][root_child] * p["struct_mass"][root_child] \
                                                 * source_volume / p["volume"][root_child]
-                            p["hexose_possibly_required_for_elongation"][v] += hexose_contribution
-                            p["amino_acids_possibly_required_for_elongation"][v] += amino_acids_contribution
-                            p["struct_mass_contributing_to_elongation"][v] += p["struct_mass"][root_child] \
-                                                                        * source_volume / p["volume"][root_child]
-                            # We record the index of the contributing element:
-                            list_of_elongation_supporting_elements.append(root_child)
-                            # We record the amount of hexose that the current element can provide:
-                            list_of_elongation_supporting_elements_hexose.append(hexose_contribution)
-                            # We record the amount of amino acids that the current element can provide:
-                            list_of_elongation_supporting_elements_amino_acids.append(amino_acids_contribution)
-                            # We record the structural mass from which the current element contributes:
-                            list_of_elongation_supporting_elements_mass.append(
-                                p["struct_mass"][root_child] * remaining_volume / p["volume"][root_child])
+                            if hexose_contribution > 0. and amino_acids_contribution > 0.:
+                                p["hexose_possibly_required_for_elongation"][v] += hexose_contribution
+                                p["amino_acids_possibly_required_for_elongation"][v] += amino_acids_contribution
+                                p["struct_mass_contributing_to_elongation"][v] += p["struct_mass"][root_child] \
+                                                                            * source_volume / p["volume"][root_child]
+                                # We record the index of the contributing element:
+                                list_of_elongation_supporting_elements.append(root_child)
+                                # We record the amount of hexose that the current element can provide:
+                                list_of_elongation_supporting_elements_hexose.append(hexose_contribution)
+                                # We record the amount of amino acids that the current element can provide:
+                                list_of_elongation_supporting_elements_amino_acids.append(amino_acids_contribution)
+                                # We record the structural mass from which the current element contributes:
+                                list_of_elongation_supporting_elements_mass.append(
+                                    p["struct_mass"][root_child] * remaining_volume / p["volume"][root_child])
                         
                         if remaining_volume <= sum_volumes:
                             remaining_volume = 0.
@@ -1070,19 +1080,20 @@ class RootGrowthModelCoupled(*inheriting):
                                       * remaining_volume / p["volume"][index]
                 amino_acids_contribution = p["AA"][index] * p["struct_mass"][index] \
                                       * remaining_volume / p["volume"][index]
-                p["hexose_possibly_required_for_elongation"][v] += hexose_contribution
-                p["amino_acids_possibly_required_for_elongation"][v] += amino_acids_contribution
-                p["struct_mass_contributing_to_elongation"][v] += p["struct_mass"][index] \
-                                                            * remaining_volume / p["volume"][index]
-                # We record the index of the contributing element:
-                list_of_elongation_supporting_elements.append(index)
-                # We record the amount of hexose that the current element can provide:
-                list_of_elongation_supporting_elements_hexose.append(hexose_contribution)
-                # We record the amount of amino acids that the current element can provide:
-                list_of_elongation_supporting_elements_amino_acids.append(amino_acids_contribution)
-                # We record the structural mass from which the current element contributes:
-                list_of_elongation_supporting_elements_mass.append(
-                    p["struct_mass"][index] * remaining_volume / p["volume"][index])
+                if hexose_contribution > 0. and amino_acids_contribution > 0.:
+                    p["hexose_possibly_required_for_elongation"][v] += hexose_contribution
+                    p["amino_acids_possibly_required_for_elongation"][v] += amino_acids_contribution
+                    p["struct_mass_contributing_to_elongation"][v] += p["struct_mass"][index] \
+                                                                * remaining_volume / p["volume"][index]
+                    # We record the index of the contributing element:
+                    list_of_elongation_supporting_elements.append(index)
+                    # We record the amount of hexose that the current element can provide:
+                    list_of_elongation_supporting_elements_hexose.append(hexose_contribution)
+                    # We record the amount of amino acids that the current element can provide:
+                    list_of_elongation_supporting_elements_amino_acids.append(amino_acids_contribution)
+                    # We record the structural mass from which the current element contributes:
+                    list_of_elongation_supporting_elements_mass.append(
+                        p["struct_mass"][index] * remaining_volume / p["volume"][index])
                 # And the remaining volume to consider is set to 0:
                 remaining_volume = 0.
                 # And we exit the loop here:
@@ -1093,9 +1104,10 @@ class RootGrowthModelCoupled(*inheriting):
             p["growing_zone_C_hexose_root"][v] = p["hexose_possibly_required_for_elongation"][v] / p["struct_mass_contributing_to_elongation"][v]
             p["growing_zone_amino_acids"][v] = p["amino_acids_possibly_required_for_elongation"][v] / p["struct_mass_contributing_to_elongation"][v]
         else:
-            print("!!! ERROR: the mass contributing to elongation in element", v, "of type", p["type"][v], "is",
-                p["struct_mass_contributing_to_elongation"][v],
-                "g, and its structural mass is", p["struct_mass"][v], "g!")
+            if p["hexose_possibly_required_for_elongation"][v] > 0. and p["amino_acids_possibly_required_for_elongation"][v] > 0.:
+                print("!!! ERROR: the mass contributing to elongation in element", v, "of type", p["type"][v], "is",
+                    p["struct_mass_contributing_to_elongation"][v],
+                    "g, and its structural mass is", p["struct_mass"][v], "g! With available resources: hexoses", p["hexose_possibly_required_for_elongation"][v], "amino acids",  p["amino_acids_possibly_required_for_elongation"][v])
             p["growing_zone_C_hexose_root"][v] = 0.
             p["growing_zone_amino_acids"][v] = 0.
 
@@ -1764,7 +1776,7 @@ class RootGrowthModelCoupled(*inheriting):
             elif n.hexose_growth_demand == 0.:
                 continue
             
-            n.amino_acids_growth_demand = amino_acids_growth_demand
+            n.amino_acids_growth_demand = max(0., amino_acids_growth_demand)
 
             # We verify that this potential growth demand is positive:
             if n.amino_acids_growth_demand < 0.:
@@ -1800,7 +1812,9 @@ class RootGrowthModelCoupled(*inheriting):
                     - n.struct_mass_contributing_to_elongation * self.C_hexose_min_for_elongation
                 if hexose_available_for_elongation < 0.:
                     hexose_available_for_elongation = 0.
-                amino_acids_possibly_required_for_elongation = n.amino_acids_possibly_required_for_elongation
+                amino_acids_possibly_required_for_elongation = n.amino_acids_possibly_required_for_elongation - n.struct_mass_contributing_to_elongation * self.C_AA_min_for_elongation
+                if amino_acids_possibly_required_for_elongation < 0.:
+                    amino_acids_possibly_required_for_elongation = 0.
                 list_of_elongation_supporting_elements = n.list_of_elongation_supporting_elements
                 list_of_elongation_supporting_elements_hexose = n.list_of_elongation_supporting_elements_hexose
                 list_of_elongation_supporting_elements_amino_acids = n.list_of_elongation_supporting_elements_amino_acids
@@ -1820,8 +1834,8 @@ class RootGrowthModelCoupled(*inheriting):
 
                 amino_acids_available_for_thickening = n.amino_acids_available_for_thickening
 
-            # In case no hexose and amino acids are available at all:
-            if (hexose_available_for_elongation  + hexose_available_for_thickening) <= 0. and (
+            # In case no hexose or amino acids are available at all:
+            if (hexose_available_for_elongation  + hexose_available_for_thickening) <= 0. or (
                 amino_acids_possibly_required_for_elongation + amino_acids_available_for_thickening) <= 0. :
                 # Then we move to the next element in the main loop:
                 continue
@@ -1852,8 +1866,8 @@ class RootGrowthModelCoupled(*inheriting):
                     print("N is limiting volume")
                 else:
                     print("C is limiting volume")
-            # length_max = min(volume_max_C, volume_max_N) / (pi * n.initial_radius ** 2)
-            length_max = volume_max_C / (pi * n.initial_radius ** 2)
+            length_max = min(volume_max_C, volume_max_N) / (pi * n.initial_radius ** 2)
+            
             # if volume_max_C > volume_max_N:
             #     print("N is limiting volume", length_max / n.potential_length)
             # else:
@@ -1939,6 +1953,9 @@ class RootGrowthModelCoupled(*inheriting):
                         # And the amount of hexose that has been used for growth respiration is calculated and transformed into moles of CO2:
                         supplying_element.resp_growth += hexose_actual_contribution_to_elongation * (1 - self.yield_growth) * 6.
 
+                        if (n.AA == 0. and n.amino_acids_consumption_by_growth > 0.) or (n.C_hexose_root == 0. and n.hexose_consumption_by_growth > 0.) :
+                            print("ERROR, Elongation consumming despite null concentrations")
+
             # ACTUAL RADIAL GROWTH IS THEN CONSIDERED:
             # -----------------------------------------
             # If the radius of the element can increase:
@@ -2006,20 +2023,26 @@ class RootGrowthModelCoupled(*inheriting):
 
                 # REGISTERING THE COSTS FOR THICKENING:
                 # --------------------------------------
-                fraction_of_available_hexose_in_the_element = \
-                    (n.C_hexose_root * n.initial_struct_mass) / hexose_available_for_thickening
+                if hexose_available_for_thickening > 0.:
+                    fraction_of_available_hexose_in_the_element = \
+                        (n.C_hexose_root * n.initial_struct_mass) / hexose_available_for_thickening
+                else:
+                    fraction_of_available_hexose_in_the_element = 0.
                 # The amount of hexose used for growth in this element is increased:
                 n.hexose_consumption_by_growth_amount += \
                     (hexose_actual_contribution_to_thickening * fraction_of_available_hexose_in_the_element)
                 n.hexose_consumption_by_growth += \
                     (hexose_actual_contribution_to_thickening * fraction_of_available_hexose_in_the_element) / self.time_step_in_seconds
                 # Same calculation for amino acids costs
-                fraction_of_available_amino_acids_in_the_element = \
-                    (n.AA * n.initial_struct_mass) / amino_acids_available_for_thickening
+                if amino_acids_available_for_thickening > 0.:
+                    fraction_of_available_amino_acids_in_the_element = \
+                        (n.AA * n.initial_struct_mass) / amino_acids_available_for_thickening
+                else:
+                    fraction_of_available_amino_acids_in_the_element = 0.
                 # The amount of amino acids used for growth in this element is increased:
                 n.amino_acids_consumption_by_growth_amount += \
                     (amino_acids_actual_contribution_to_thickening * fraction_of_available_amino_acids_in_the_element)
-                n.hexose_consumption_by_growth += \
+                n.amino_acids_consumption_by_growth += \
                     (amino_acids_actual_contribution_to_thickening * fraction_of_available_amino_acids_in_the_element) / self.time_step_in_seconds
                 # And the amount of hexose that has been used for growth respiration is calculated and transformed into moles of CO2:
                 n.resp_growth += \
@@ -2028,16 +2051,22 @@ class RootGrowthModelCoupled(*inheriting):
                 if n.type == self.type_Root_nodule:
                     index_parent = g.Father(n._vid, EdgeType='+')
                     parent = g.node(index_parent)
-                    fraction_of_available_hexose_in_the_element = \
-                        (parent.C_hexose_root * parent.initial_struct_mass) / hexose_available_for_thickening
+                    if hexose_available_for_thickening > 0.:
+                        fraction_of_available_hexose_in_the_element = \
+                            (parent.C_hexose_root * parent.initial_struct_mass) / hexose_available_for_thickening
+                    else:
+                        fraction_of_available_hexose_in_the_element = 0.
                     # The amount of hexose used for growth in this element is increased:
                     parent.hexose_consumption_by_growth_amount += \
                         (hexose_actual_contribution_to_thickening * fraction_of_available_hexose_in_the_element)
                     parent.hexose_consumption_by_growth += \
                         (hexose_actual_contribution_to_thickening * fraction_of_available_hexose_in_the_element) / self.time_step_in_seconds
                     # Same calculation for amino acids costs
-                    fraction_of_available_amino_acids_in_the_element = \
-                        (parent.AA * parent.initial_struct_mass) / amino_acids_available_for_thickening
+                    if amino_acids_available_for_thickening > 0.:
+                        fraction_of_available_amino_acids_in_the_element = \
+                            (parent.AA * parent.initial_struct_mass) / amino_acids_available_for_thickening
+                    else:
+                        fraction_of_available_amino_acids_in_the_element = 0.
                     # The amount of hexose used for growth in this element is increased:
                     parent.amino_acids_consumption_by_growth_amount += \
                         (amino_acids_actual_contribution_to_thickening * fraction_of_available_amino_acids_in_the_element)
@@ -2048,6 +2077,9 @@ class RootGrowthModelCoupled(*inheriting):
                     parent.resp_growth += \
                         (hexose_actual_contribution_to_thickening * fraction_of_available_hexose_in_the_element) \
                         * (1 - self.yield_growth) * 6.
+                
+                if (n.AA == 0. and n.amino_acids_consumption_by_growth > 0.) or (n.C_hexose_root == 0. and n.hexose_consumption_by_growth) :
+                    print("ERROR, Thickening consumming despite null concentrations")
 
             # RECORDING THE ACTUAL STRUCTURAL MODIFICATIONS:
             # -----------------------------------------------
@@ -2418,15 +2450,17 @@ class RootGrowthModelCoupled(*inheriting):
                     # elongation) available in the root hair zone on the root element:
                     cn_limitation = ((p["C_hexose_root"][v] / (p["C_hexose_root"][v] + self.Km_elongation)) + (p["AA"][v] / (p["AA"][v] + self.Km_elongation_amino_acids))) / 2
                     new_length = p["root_hair_length"][v] + self.root_hairs_elongation_rate * self.root_hair_radius * (p["actual_length_with_hairs"][v] / length[v]) * cn_limitation * elapsed_thermal_time
-                
-                    # If the new calculated length is higher than the maximal length:
-                    if new_length > self.root_hair_max_length:
-                        # We set the root hairs length to the maximal length:
-                        root_hair_length = self.root_hair_max_length
+                    if p["C_hexose_root"][v]> 0. and p["AA"][v] > 0.:
+                        # If the new calculated length is higher than the maximal length:
+                        if new_length > self.root_hair_max_length:
+                            # We set the root hairs length to the maximal length:
+                            root_hair_length = self.root_hair_max_length
+                        else:
+                            # Otherwise, we record the new calculated length:
+                            root_hair_length = new_length
+                        p["root_hair_length"][v] = root_hair_length
                     else:
-                        # Otherwise, we record the new calculated length:
-                        root_hair_length = new_length
-                    p["root_hair_length"][v] = root_hair_length
+                        root_hair_length = p["root_hair_length"][v]
 
                 else:
                     root_hair_length = p["root_hair_length"][v]
