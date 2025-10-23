@@ -1868,10 +1868,11 @@ class RootGrowthModelCoupled(*inheriting):
                     print("C is limiting volume")
             length_max = min(volume_max_C, volume_max_N) / (pi * n.initial_radius ** 2)
             
-            # if volume_max_C > volume_max_N:
-            #     print("N is limiting volume", length_max / n.potential_length)
-            # else:
-            #     print("C is limiting volume", length_max / n.potential_length)
+            if n.root_order == 1:
+                if volume_max_C > volume_max_N:
+                    print("N is limiting volume", length_max / n.potential_length)
+                else:
+                    print("C is limiting volume", length_max / n.potential_length)
 
             # If the element can elongate:
             if n.potential_length > n.initial_length:
@@ -2514,8 +2515,8 @@ class RootGrowthModelCoupled(*inheriting):
         :param nil_properties: if True, the main properties of the child will be 0
         :return: the new child element
         """
-        if edge_type == "<":
-            print("new element formed by elongation")
+        if edge_type == "<" and mother_element.root_order == 1:
+            print("First order root: new element formed by elongation")
 
         # TODO# FOR TRISTAN: When working with a dynamic root structure, you will need to specify in this function
         #  "ADDING_A_CHILD" your new variables that will either be set to 0 (nil properties) or be equal to that of the mother

@@ -169,10 +169,10 @@ class RootCNUnified(*inheriting):
         Cv_hexose_root = C_hexose_root * living_struct_mass / symplasmic_volume
 
         reference_rate_of_hexose_consumption_by_growth = self.reference_rate_of_hexose_consumption_by_growth
-        reference_rate_of_hexose_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_hexose_consumption_by_growth/1, reference_rate_of_hexose_consumption_by_growth)
+        # reference_rate_of_hexose_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_hexose_consumption_by_growth/1, reference_rate_of_hexose_consumption_by_growth)
 
-        phloem_permeability = self.diffusion_phloem * (1 + (hexose_consumption_by_growth + deficit_hexose_root) /
-                                                            (reference_rate_of_hexose_consumption_by_growth))
+        phloem_permeability = self.diffusion_phloem * (1 + np.where(type == self.type_Base_of_the_root_system, (deficit_hexose_root) / (reference_rate_of_hexose_consumption_by_growth),
+                                                                    (hexose_consumption_by_growth + deficit_hexose_root) / (reference_rate_of_hexose_consumption_by_growth)))
         # phloem_permeability = self.diffusion_phloem * (1 + hexose_consumption_by_growth /
         #                                                     (living_struct_mass * self.massic_reference_rate_of_hexose_consumption_by_growth))
         # phloem_permeability = self.diffusion_phloem
@@ -219,10 +219,11 @@ class RootCNUnified(*inheriting):
         """ Passive radial diffusion between phloem and cortex through plasmodesmata """
 
         reference_rate_of_AA_consumption_by_growth = self.reference_rate_of_AA_consumption_by_growth
-        reference_rate_of_AA_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_AA_consumption_by_growth/1, reference_rate_of_AA_consumption_by_growth)
+        # reference_rate_of_AA_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_AA_consumption_by_growth/1, reference_rate_of_AA_consumption_by_growth)
 
         # permeability_phloem_AA = self.permeability_phloem_AA * (1 + amino_acids_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_AA_consumption_by_growth))
-        permeability_phloem_AA = self.permeability_phloem_AA * (1 + (amino_acids_consumption_by_growth + deficit_AA) / (reference_rate_of_AA_consumption_by_growth))
+        permeability_phloem_AA = self.permeability_phloem_AA * (1 + np.where(type == self.type_Base_of_the_root_system, (deficit_AA) / (reference_rate_of_AA_consumption_by_growth),
+                                                                             (amino_acids_consumption_by_growth + deficit_AA) / (reference_rate_of_AA_consumption_by_growth)))
         # permeability_phloem_AA = self.permeability_phloem_AA 
 
         permeability_phloem_AA *= self.temperature_modification(soil_temperature=soil_temperature,
