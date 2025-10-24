@@ -269,29 +269,57 @@ class RootCNUnified(*inheriting):
         - Amino acid catabolism releasing hexose
         - Nitrogen metabolism related respiration costs
         """
-        # print({k: v for k, v in locals().items() if k != 'self'})
 
-        balance = C_hexose_root + (self.time_step / living_struct_mass) * (
-                - hexose_exudation
-                + hexose_uptake_from_soil
-                - mucilage_secretion
-                - cells_release
-                - maintenance_respiration / 6.
-                - hexose_consumption_by_growth
-                - hexose_consumption_by_fungus
-                + hexose_diffusion_from_phloem
-                + hexose_active_production_from_phloem
-                - 2. * sucrose_loading_in_phloem
-                + hexose_mobilization_from_reserve
-                - hexose_immobilization_as_reserve
-                - deficit_hexose_root
-                - AA_synthesis * self.r_hexose_AA
-                + AA_catabolism * self.r_hexose_AA
-                - N_metabolic_respiration / 6.)
+        f = 1e13 # arbitrary
+        _hexose_exudation = hexose_exudation * f
+        _hexose_uptake_from_soil = hexose_uptake_from_soil * f
+        _mucilage_secretion = mucilage_secretion * f
+        _cells_release = cells_release * f
+        _maintenance_respiration = maintenance_respiration * f
+        _hexose_consumption_by_growth = hexose_consumption_by_growth * f
+        _hexose_consumption_by_fungus = hexose_consumption_by_fungus * f
+        _hexose_diffusion_from_phloem = hexose_diffusion_from_phloem * f
+        _hexose_active_production_from_phloem = hexose_active_production_from_phloem * f
+        _sucrose_loading_in_phloem = sucrose_loading_in_phloem * f
+        _hexose_mobilization_from_reserve = hexose_mobilization_from_reserve * f
+        _hexose_immobilization_as_reserve = hexose_immobilization_as_reserve * f
+        _deficit_hexose_root = deficit_hexose_root * f
+        _AA_synthesis = AA_synthesis * f
+        _AA_catabolism = AA_catabolism * f
+        _N_metabolic_respiration = N_metabolic_respiration * f
+
+
+        inflow =  (_hexose_uptake_from_soil
+                + _hexose_diffusion_from_phloem
+                + _hexose_active_production_from_phloem
+                + _hexose_mobilization_from_reserve
+                + _AA_catabolism * self.r_hexose_AA)
         
-        deficit = - balance * living_struct_mass / self.time_step
-        deficit = np.where(deficit > 1e-20, deficit, 0.)
-        balance = np.maximum(balance, 0.)
+        outflow = (_hexose_exudation
+                + _mucilage_secretion
+                + _cells_release
+                + _maintenance_respiration / 6.
+                + _hexose_consumption_by_growth
+                + _hexose_consumption_by_fungus
+                + 2. * _sucrose_loading_in_phloem
+                + _hexose_immobilization_as_reserve
+                + _deficit_hexose_root
+                + _AA_synthesis * self.r_hexose_AA
+                + _N_metabolic_respiration / 6.)
+        
+        netflow = inflow - outflow
+
+        _living_struct_mass = 1e6 * living_struct_mass # µg
+
+        derivative = (self.time_step / _living_struct_mass) * netflow
+        derivative = derivative * 1e-7
+        raw_balance = C_hexose_root + derivative
+        
+        is_neg = raw_balance < 0.0
+        deficit = np.where(is_neg, -raw_balance * (living_struct_mass / self.time_step), 0.0)
+        # deficit = np.where(deficit > 1e-20, deficit, 0.0)
+
+        balance = np.where(is_neg, 0.0, raw_balance)
 
         return balance, 'deficit_hexose_root', deficit
 
