@@ -324,12 +324,13 @@ class RootCNUnified(*inheriting):
         return balance, 'deficit_hexose_root', deficit
 
     @state
-    def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+    def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, loading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
                   amino_acids_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA) -> tuple[float, str, float]:
         
         f = 1e13 # arbitrary
         _diffusion_AA_phloem = diffusion_AA_phloem * f
         _unloading_AA_phloem = unloading_AA_phloem * f
+        _loading_AA_phloem = loading_AA_phloem * f
         _import_AA = import_AA * f
         _AA_synthesis = AA_synthesis * f
         _storage_catabolism = storage_catabolism * f
@@ -347,6 +348,7 @@ class RootCNUnified(*inheriting):
                 + _storage_catabolism * self.r_AA_stor)
         
         outflow = (_diffusion_AA_soil
+                + _loading_AA_phloem
                 + _export_AA
                 + _amino_acids_consumption_by_growth
                 + _storage_synthesis * self.r_AA_stor
