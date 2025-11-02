@@ -201,7 +201,7 @@ class RootCNUnified(*inheriting):
         Superimposing original, staying with a massic concentration gradient as fist approximation to avoid changing parameters
         """
         # Removed condition to limit based on deficit compared to RhizoDep
-        max_unloading_rate = 0 * self.max_unloading_rate * (1 + hexose_consumption_by_growth /
+        max_unloading_rate = self.max_unloading_rate * (1 + hexose_consumption_by_growth /
                                                         self.reference_rate_of_hexose_consumption_by_growth)
         max_unloading_rate *= self.temperature_modification(soil_temperature=soil_temperature,
                                                             T_ref=self.phloem_unloading_T_ref,
