@@ -132,7 +132,7 @@ class RootCNUnified(*inheriting):
         "solute_volumic_concentration_bounds": (1e-4, 3e3),
         }
 
-        # struct_mass_N_content = 0.0173 / 14
+        # struct_mass_N_content = 0.005 / 14
         # struct_mass_C_content = 0.44 / 12
 
         # for vid in self.vertices:

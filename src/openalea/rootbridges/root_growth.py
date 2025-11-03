@@ -53,7 +53,7 @@ class RootGrowthModelCoupled(*inheriting):
     Km_nodule_thickening_amino_acids: float = declare(default=1250 * 1e-6 / 5. * 100, unit="mol.g-1", unit_comment="of amino_acids", description="Affinity constant for nodule thickening regarding amino_acids consumption", 
                                                     min_value="", max_value="", value_comment="Km_elongation * 100, TODO : actualize", references="", DOI="",
                                                     variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
-    struct_mass_N_content: float = declare(default=0.0173 / 14, unit="mol.g-1", unit_comment="of organic nitrogen", description="organic nitrogen content of structural mass",
+    struct_mass_N_content: float = declare(default=0.005 / 14, unit="mol.g-1", unit_comment="of organic nitrogen", description="organic nitrogen content of structural mass",
                                                     min_value="", max_value="", value_comment="", references="Ort et al. 2013", DOI="",
                                                     variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
     struct_mass_N_content_max: float = declare(default=0.035 / 14, unit="mol.g-1", unit_comment="of organic nitrogen", description="organic nitrogen content of structural mass",
@@ -68,7 +68,7 @@ class RootGrowthModelCoupled(*inheriting):
     r_C_AA: float =     declare(default=5, unit="adim", unit_comment="mol of carbon per mol of amino acids", description="concentration stoechiometric ratio between carbon and amino acids in roots", 
                                 min_value="", max_value="", value_comment="Based on glutamic acid", references="", DOI="",
                                 variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
-    C_AA_min_for_elongation: float = declare(default=0 * 1e-5 * (6 * 12 / 0.44) * 0.0173 / 14 / 1.4 , unit="mol.g-1", unit_comment="in mol of hexose per g of structural mass", description="Treshold hexose concentration for thikening", 
+    C_AA_min_for_elongation: float = declare(default=0 * 1e-5 * (6 * 12 / 0.44) * 0.005 / 14 / 1.4 , unit="mol.g-1", unit_comment="in mol of hexose per g of structural mass", description="Treshold hexose concentration for thikening", 
                                                     min_value="", max_value="", value_comment="0 because not used in RhizoDep reference scenarios!", references="?", DOI="",
                                                     variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
 
