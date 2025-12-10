@@ -443,6 +443,13 @@ class RootCNUnified(*inheriting):
         Handled by the heterogeneous axial transport model now
         """
         return
+    
+    @rate
+    def _amino_acids_consumption_by_growth(self, hexose_consumption_by_growth):
+        """
+        Handled by the growth component now
+        """
+        return
 
     @state
     def _Cv_sucrose_root(self, C_sucrose_root, living_struct_mass, phloem_volume):
