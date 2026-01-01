@@ -116,7 +116,7 @@ class RootCNUnified(*inheriting):
         "solute_massic_concentration_prop": "C_sucrose_root",
         "solute_massic_concentration_symplasm": "hexose_diffusion_from_phloem",
         "diffusive_flux_name": "hexose_diffusion_from_phloem",
-        "diffusive_flux_conversion": - 1 /2,
+        "diffusive_flux_conversion": - 1 / 2,
         "diffusion_parameter": "diffusion_phloem",
         "conductive_element_volume_prop": "phloem_volume",
         "water_flux_prop": "axial_export_water_up_phloem",
@@ -131,6 +131,8 @@ class RootCNUnified(*inheriting):
         "solute_flux_to_shoot": "sucrose_root_to_shoot_phloem",
         "solute_volumic_concentration_bounds": (1e-4, 3e3),
         }
+
+        self.cumulated_time = 0.
 
         # struct_mass_N_content = 0.005 / 14
         # struct_mass_C_content = 0.44 / 12
@@ -375,29 +377,6 @@ class RootCNUnified(*inheriting):
 
         return balance, 'deficit_AA', deficit
 
-    # @state
-    # def _AA(self, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
-    #               amino_acids_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA) -> tuple[float, str, float]:
-        
-    #     balance =  AA + (self.time_step / living_struct_mass) * (
-    #             diffusion_AA_phloem
-    #             + unloading_AA_phloem
-    #             + import_AA
-    #             - diffusion_AA_soil
-    #             - export_AA
-    #             + AA_synthesis
-    #             - amino_acids_consumption_by_growth
-    #             - storage_synthesis * self.r_AA_stor
-    #             + storage_catabolism * self.r_AA_stor
-    #             - AA_catabolism
-    #             - deficit_AA)
-        
-    #     deficit = - balance * living_struct_mass / self.time_step
-    #     deficit = np.where(deficit > 1e-20, deficit, 0.)
-    #     balance = np.maximum(balance, 0.)
-
-    #     return balance, 'deficit_AA', deficit
-
     
     @state
     def _C_solutes_phloem(self, C_sucrose_root, phloem_AA):
@@ -441,13 +420,6 @@ class RootCNUnified(*inheriting):
     def shoot_sucrose_supply_and_spreading(self):
         """
         Handled by the heterogeneous axial transport model now
-        """
-        return
-    
-    @rate
-    def _amino_acids_consumption_by_growth(self, hexose_consumption_by_growth):
-        """
-        Handled by the growth component now
         """
         return
 
