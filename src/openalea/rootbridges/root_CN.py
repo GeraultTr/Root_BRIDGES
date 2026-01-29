@@ -19,7 +19,7 @@ class RootCNUnified(*inheriting):
     Cv_sucrose_phloem_collar: float = declare(default=950, unit="mol.m-3", unit_comment="", description="Sucrose volumic concentration in phloem at collar point", 
                                        min_value=0, max_value=1200, value_comment="", references="Winter et al. 1992", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    mstruct_axis_shoot: float = declare(default=0.0541, unit="g", unit_comment="", description="Shoot initial structural mass", 
+    mstruct_axis_shoot: float = declare(default=0.0541, unit="g", unit_comment="", description="Total axis initial structural mass, shoot because it cannot have the same variable name as the shoot model to avoid confusion", 
                                        min_value=0, max_value=1200, value_comment="", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     sucrose_phloem_shoot: float = declare(default=17 / 12 / 1e6, unit="mol", unit_comment="of sucrose", description="", 
