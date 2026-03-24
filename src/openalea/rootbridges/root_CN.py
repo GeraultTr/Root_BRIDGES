@@ -433,6 +433,52 @@ class RootCNUnified(*inheriting):
         return np.where(symplasmic_volume > 0., C_hexose_root * living_struct_mass / np.where(symplasmic_volume > 0., symplasmic_volume, 1.), 0.)
     
 
-        
+    # @note balance check functions
 
-    
+    @totalstate
+    def check_balance(self):
+        """
+        This function computes carbon balance and it is aligned with fluxes integration.
+        """
+
+        actual_C_amount_in_the_root_system = self.compute_root_system_C_content()
+
+        sucrose_root_to_shoot_phloem = self.sucrose_root_to_shoot_phloem
+
+        if isinstance(sucrose_root_to_shoot_phloem, float):
+            sucrose_input = - sucrose_root_to_shoot_phloem
+        else:
+            sucrose_input = - sucrose_root_to_shoot_phloem[1]
+        
+        expected_C_amount_in_the_root_system = self.previous_C_amount_in_the_root_system + self.time_step*(
+            12 * sucrose_input
+            - 6 * sum(self.hexose_exudation.values_array())
+            - sum(self.props["resp_growth"].values_array())
+            - 6 * sum(self.hexose_consumption_by_growth.values_array())
+            - 6 * sum(self.phloem_hexose_exudation.values_array())
+            + 6 * sum(self.hexose_uptake_from_soil.values_array())
+            + 6 * sum(self.phloem_hexose_uptake_from_soil.values_array())
+            - 6 * sum(self.mucilage_secretion.values_array())
+            - 6 * sum(self.cells_release.values_array()))
+
+        self.previous_C_amount_in_the_root_system = actual_C_amount_in_the_root_system
+
+        assert np.all(expected_C_amount_in_the_root_system == actual_C_amount_in_the_root_system), f"Actual is {actual_C_amount_in_the_root_system} mol, expected is {expected_C_amount_in_the_root_system}"
+
+
+    def compute_root_system_C_content(self):
+
+        labile, phloem, reserve, aa, paa, xaa, mass = (
+            self.props["C_hexose_root"].values_array(), 
+            self.props["C_sucrose_root"].values_array(),
+            self.props["C_hexose_reserve"].values_array(),
+            self.props["AA"].values_array(),
+            self.props["phloem_AA"].values_array(),
+            self.props["xylem_AA"].values_array(),
+            self.props["living_struct_mass"].values_array())
+        
+        segment_C_content = (6*labile + 12*phloem + 6*reserve + 5*aa + 5*paa + 5*xaa) * mass
+
+        assert (not np.any(np.isnan(segment_C_content))) and (not np.any(np.isinf(segment_C_content))) and (not np.any(segment_C_content < 0.)), "Some segments have nan, infinite or negative C balance"
+
+        return segment_C_content
