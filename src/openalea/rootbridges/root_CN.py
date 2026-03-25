@@ -48,7 +48,7 @@ class RootCNUnified(*inheriting):
     
     # @note SUMMED STATE VARIABLES
 
-    sucrose_root_to_shoot_phloem: float =       declare(default=-1e-6, unit="mol.time_step-1", unit_comment="of sucrose", description="",
+    sucrose_root_to_shoot_phloem: float =       declare(default=-1e-6, unit="mol.s-1", unit_comment="of sucrose", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     Cv_sucrose_average: float =                   declare(default=1., unit="mol.m-3", unit_comment="of amino acids", description="", 
@@ -109,7 +109,7 @@ class RootCNUnified(*inheriting):
         self.link_self_to_mtg()
         self.initiate_heterogeneous_variables()
 
-        self.previous_C_amount_in_the_root_system = self.compute_root_system_C_content()
+        self.previous_C_amount_in_the_root_system = self.compute_root_system_C_content().sum()
         # self.total_root_sucrose_and_living_struct_mass() # Needed otherwise first shoot unloading will be unrealistic
 
         self.solute_configs["C_sucrose_root"] = {
@@ -290,7 +290,6 @@ class RootCNUnified(*inheriting):
         _AA_catabolism = AA_catabolism * f
         _N_metabolic_respiration = N_metabolic_respiration * f
 
-
         inflow =  (_hexose_uptake_from_soil
                 + _hexose_diffusion_from_phloem
                 + _hexose_active_production_from_phloem
@@ -319,11 +318,17 @@ class RootCNUnified(*inheriting):
         
         is_neg = raw_balance < 0.0
         deficit = np.where(is_neg, -raw_balance * (living_struct_mass / self.time_step), 0.0)
-        # deficit = np.where(deficit > 1e-20, deficit, 0.0)
 
         balance = np.where(is_neg, 0.0, raw_balance)
 
+        assert not np.any(np.isnan(balance))
+        assert not np.any(np.isinf(balance))
+        assert not np.any(np.isnan(deficit))
+        assert not np.any(np.isinf(deficit))
+        assert np.all(np.abs(raw_balance - (balance - deficit * (self.time_step / living_struct_mass))) < 1e-15)
+
         return balance, 'deficit_hexose_root', deficit
+
 
     @state
     def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, loading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
@@ -441,43 +446,44 @@ class RootCNUnified(*inheriting):
         This function computes carbon balance and it is aligned with fluxes integration.
         """
 
-        actual_C_amount_in_the_root_system = self.compute_root_system_C_content()
-
-        sucrose_root_to_shoot_phloem = self.sucrose_root_to_shoot_phloem
-
-        if isinstance(sucrose_root_to_shoot_phloem, float):
-            sucrose_input = - sucrose_root_to_shoot_phloem
-        else:
-            sucrose_input = - sucrose_root_to_shoot_phloem[1]
+        actual_C_amount_in_the_root_system = self.compute_root_system_C_content().sum()
         
         expected_C_amount_in_the_root_system = self.previous_C_amount_in_the_root_system + self.time_step*(
-            12 * sucrose_input
-            - 6 * sum(self.hexose_exudation.values_array())
-            - sum(self.props["resp_growth"].values_array())
-            - 6 * sum(self.hexose_consumption_by_growth.values_array())
-            - 6 * sum(self.phloem_hexose_exudation.values_array())
-            + 6 * sum(self.hexose_uptake_from_soil.values_array())
-            + 6 * sum(self.phloem_hexose_uptake_from_soil.values_array())
-            - 6 * sum(self.mucilage_secretion.values_array())
-            - 6 * sum(self.cells_release.values_array()))
+            - 12 * self.props["sucrose_root_to_shoot_phloem"].values_array()[0]
+            - 5 * self.props["AA_root_to_shoot_phloem"].values_array()[0]
+            - 5 * self.props["AA_root_to_shoot_xylem"].values_array()[0]
+            - 6 * self.props["hexose_exudation"].values_array().sum()
+            - self.props["maintenance_respiration"].values_array().sum()
+            - self.props["N_metabolic_respiration"].values_array().sum()
+            - 6 * self.props["hexose_consumption_by_growth"].values_array().sum()
+            - 6 * self.props["hexose_consumption_by_fungus"].values_array().sum()
+            - 6 * self.props["phloem_hexose_exudation"].values_array().sum()
+            + 6 * self.props["hexose_uptake_from_soil"].values_array().sum()
+            + 6 * self.props["phloem_hexose_uptake_from_soil"].values_array().sum()
+            - 6 * self.props["mucilage_secretion"].values_array().sum()
+            - 6 * self.props["cells_release"].values_array().sum())
 
         self.previous_C_amount_in_the_root_system = actual_C_amount_in_the_root_system
 
-        assert np.all(expected_C_amount_in_the_root_system == actual_C_amount_in_the_root_system), f"Actual is {actual_C_amount_in_the_root_system} mol, expected is {expected_C_amount_in_the_root_system}"
+        assert expected_C_amount_in_the_root_system == actual_C_amount_in_the_root_system, f"Quantities mismatch, expected {expected_C_amount_in_the_root_system} and actual {actual_C_amount_in_the_root_system}"
 
 
     def compute_root_system_C_content(self):
 
-        labile, phloem, reserve, aa, paa, xaa, mass = (
-            self.props["C_hexose_root"].values_array(), 
+        labile, phloem, reserve, aa, paa, xaa, deficit_hexose, deficit_AA, mass = (
+            self.props["C_hexose_root"].values_array(),
             self.props["C_sucrose_root"].values_array(),
             self.props["C_hexose_reserve"].values_array(),
             self.props["AA"].values_array(),
             self.props["phloem_AA"].values_array(),
             self.props["xylem_AA"].values_array(),
+            self.props["deficit_hexose_root"].values_array(),
+            self.props["deficit_AA"].values_array(),
             self.props["living_struct_mass"].values_array())
         
-        segment_C_content = (6*labile + 12*phloem + 6*reserve + 5*aa + 5*paa + 5*xaa) * mass
+        print("deficit_levels", 6*self.props["deficit_hexose_root"].values_array().sum() + 5*self.props["deficit_AA"].values_array().sum())
+        
+        segment_C_content = (6*labile + 12*phloem + 6*reserve + 5*aa + 5*paa + 5*xaa - 6*deficit_hexose - 5*deficit_AA) * mass
 
         assert (not np.any(np.isnan(segment_C_content))) and (not np.any(np.isinf(segment_C_content))) and (not np.any(segment_C_content < 0.)), "Some segments have nan, infinite or negative C balance"
 
