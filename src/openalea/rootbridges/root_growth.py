@@ -2306,8 +2306,9 @@ class RootGrowthModelCoupled(*inheriting):
             n.root_hairs_struct_mass_produced = n.root_hairs_struct_mass - initial_root_hairs_struct_mass
 
             # We add the cost of producing the new living root hairs (if any) to the hexose consumption by growth:
-            hexose_consumption = n.root_hairs_struct_mass_produced * self.struct_mass_C_content / self.yield_growth / 6.
             amino_acids_comsumption = n.root_hairs_struct_mass_produced * self.struct_mass_N_content / self.yield_growth_N / self.r_Nm_AA
+            C_brought_by_amino_acids = amino_acids_comsumption * self.r_C_AA
+            hexose_consumption = (n.root_hairs_struct_mass_produced * self.struct_mass_C_content / self.yield_growth - C_brought_by_amino_acids) / 6.
 
             n.hexose_consumption_by_growth_amount += hexose_consumption
             n.hexose_consumption_by_growth += hexose_consumption / self.time_step_in_seconds
@@ -2487,8 +2488,9 @@ class RootGrowthModelCoupled(*inheriting):
                 p["root_hairs_struct_mass_produced"][v] = root_hairs_struct_mass_produced
 
                 # We add the cost of producing the new living root hairs (if any) to the hexose consumption by growth:
-                hexose_consumption = root_hairs_struct_mass_produced * self.struct_mass_C_content / self.yield_growth / 6.
                 amino_acids_comsumption = root_hairs_struct_mass_produced * self.struct_mass_N_content / self.yield_growth_N / self.r_Nm_AA
+                C_brought_by_amino_acids = amino_acids_comsumption * self.r_C_AA
+                hexose_consumption = (root_hairs_struct_mass_produced * self.struct_mass_C_content / self.yield_growth - C_brought_by_amino_acids) / 6.
                 p["hexose_consumption_by_growth_amount"][v] += hexose_consumption
                 p["hexose_consumption_by_growth"][v] += hexose_consumption / self.time_step_in_seconds
                 p["amino_acids_consumption_by_growth_amount"][v] += amino_acids_comsumption

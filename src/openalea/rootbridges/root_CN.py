@@ -331,7 +331,7 @@ class RootCNUnified(*inheriting):
 
 
     @state
-    def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, loading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+    def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, loading_AA_phloem, import_AA, diffusion_AA_soil, diffusion_AA_xylem, export_AA, AA_synthesis,
                   amino_acids_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA) -> tuple[float, str, float]:
         
         f = 1e13 # arbitrary
@@ -342,6 +342,7 @@ class RootCNUnified(*inheriting):
         _AA_synthesis = AA_synthesis * f
         _storage_catabolism = storage_catabolism * f
         _diffusion_AA_soil = diffusion_AA_soil * f
+        _diffusion_AA_xylem = diffusion_AA_xylem * f
         _export_AA = export_AA * f
         _amino_acids_consumption_by_growth = amino_acids_consumption_by_growth * f
         _storage_synthesis = storage_synthesis * f
@@ -350,6 +351,7 @@ class RootCNUnified(*inheriting):
 
         inflow = (_diffusion_AA_phloem
                 + _unloading_AA_phloem
+                + _diffusion_AA_xylem
                 + _import_AA
                 + _AA_synthesis
                 + _storage_catabolism * self.r_AA_stor)
