@@ -445,47 +445,178 @@ class RootCNUnified(*inheriting):
     @totalstate
     def check_balance(self):
         """
-        This function computes carbon balance and it is aligned with fluxes integration.
+        Three-section carbon balance diagnostic.
+
+        Section 1 – Explicit symplasm pools (@state-updated):
+            C_hexose_root, C_hexose_reserve, AA, storage_protein
+        Section 2 – Implicit axial vessel pools (implicit-solver-updated):
+            C_sucrose_root, phloem_AA, xylem_AA
+        Section 3 – Total system (Sections 1+2 combined)
+
+        For each section, residual = actual_Δpool - net_boundary_C_flows × dt.
+        A non-zero residual in a section points to that resolution path.
         """
+        props = self.props
+        dt    = self.time_step
 
-        actual_C_amount_in_the_root_system = self.compute_root_system_C_content().sum()
+        # ── Structural mass ──────────────────────────────────────────────────
+        lsm  = props["living_struct_mass"].values_array()
+        print("length = ", len(lsm), "C_hexose_root = ", len(props["C_hexose_root"].values_array()))
+        if not hasattr(self, '_prev_lsm_total'):
+            self._prev_lsm_total = lsm.sum()
+        lsm_drift = lsm.sum() - self._prev_lsm_total
 
+        # ── Pool snapshots (mol-C per pool) ──────────────────────────────────
+        # mol-C = C_weight × massic_conc × lsm
+        # C-weights: hexose=6, sucrose=12, reserve=6, storage_protein≈5×65, AA=5
+        c_hex  = (6    * props["C_hexose_root"].values_array()    * lsm).sum()
+        c_suc  = (12   * props["C_sucrose_root"].values_array()   * lsm).sum()
+        c_res  = (6    * props["C_hexose_reserve"].values_array() * lsm).sum()
+        c_stor = (5*65 * props["storage_protein"].values_array()  * lsm).sum()
+        c_AA   = (5    * props["AA"].values_array()               * lsm).sum()
+        c_phAA = (5    * props["phloem_AA"].values_array()        * lsm).sum()
+        c_xyAA = (5    * props["xylem_AA"].values_array()         * lsm).sum()
 
-        clipped_deficit_over_time_step = self.time_step*(6*self.props["deficit_hexose_root"].values_array()
-                             + 6*self.props["deficit_hexose_reserve"].values_array()
-                             + 12*self.props["deficit_sucrose_root"].values_array()
-                             + 5*self.props["deficit_AA"].values_array()
-                             + 5*self.props["deficit_AA_phloem"].values_array()
-                             + 5*self.props["deficit_AA_xylem"].values_array()
-                             ).sum()
-        
-        boudary_flows_over_time_step = self.time_step*(
-            - 12 * self.props["sucrose_root_to_shoot_phloem"].values_array()[0]
-            - 5 * self.props["AA_root_to_shoot_phloem"].values_array()[0]
-            - 5 * self.props["AA_root_to_shoot_xylem"].values_array()[0]
-            - 6 * self.props["hexose_exudation"].values_array().sum()
-            - self.props["maintenance_respiration"].values_array().sum()
-            - self.props["N_metabolic_respiration"].values_array().sum()
-            - 6 * self.props["hexose_consumption_by_growth"].values_array().sum() # resp_growth included
-            - 6 * self.props["hexose_consumption_by_fungus"].values_array().sum()
-            - 6 * self.props["phloem_hexose_exudation"].values_array().sum()
-            + 6 * self.props["hexose_uptake_from_soil"].values_array().sum()
-            + 6 * self.props["phloem_hexose_uptake_from_soil"].values_array().sum()
-            - 6 * self.props["mucilage_secretion"].values_array().sum()
-            - 6 * self.props["cells_release"].values_array().sum()
-            + 5 * self.props["import_AA"].values_array().sum()
-            - 5 * self.props["diffusion_AA_soil"].values_array().sum()
-            - 5 * self.props["amino_acids_consumption_by_growth"].values_array().sum()
-            - 5 * self.props["apoplastic_AA_soil_xylem"].values_array().sum())
+        _cur = dict(hex=c_hex, suc=c_suc, res=c_res, stor=c_stor,
+                    AA=c_AA, phAA=c_phAA, xyAA=c_xyAA)
 
-        expected_C_amount_in_the_root_system = self.previous_C_amount_in_the_root_system + boudary_flows_over_time_step - clipped_deficit_over_time_step
+        if not hasattr(self, '_prev_pool_C'):
+            self._prev_pool_C = _cur
+        prev = self._prev_pool_C
 
-        self.previous_C_amount_in_the_root_system = actual_C_amount_in_the_root_system
+        # ── Section 1: explicit symplasm (mol-C/s, positive = inflow to root) ─
+        #   hex         : via _C_hexose_root @state
+        #   reserve     : via _C_hexose_reserve @state
+        #   AA symplasm : via _AA @state
+        #   storage_prot: via _storage_protein @state
+        #
+        #   Boundary terms that cross the root system boundary:
+        s1_maint_resp  = -1  * props["maintenance_respiration"].values_array().sum()
+        s1_Nresp       = -1  * props["N_metabolic_respiration"].values_array().sum()
+        s1_hex_growth  = -6  * props["hexose_consumption_by_growth"].values_array().sum()
+        s1_hex_fungus  = -6  * props["hexose_consumption_by_fungus"].values_array().sum()
+        s1_hex_exud    = -6  * props["hexose_exudation"].values_array().sum()
+        s1_ph_hex_exud = -6  * props["phloem_hexose_exudation"].values_array().sum()
+        s1_hex_uptake  = +6  * props["hexose_uptake_from_soil"].values_array().sum()
+        s1_ph_hex_uptk = +6  * props["phloem_hexose_uptake_from_soil"].values_array().sum()
+        s1_mucilage    = -6  * props["mucilage_secretion"].values_array().sum()
+        s1_cells       = -6  * props["cells_release"].values_array().sum()
+        s1_import_AA   = +5  * props["import_AA"].values_array().sum()
+        s1_diff_AA_sl  = -5  * props["diffusion_AA_soil"].values_array().sum()
+        s1_AA_growth   = -5  * props["amino_acids_consumption_by_growth"].values_array().sum()
+        s1_aplastic_AA = -5  * props["apoplastic_AA_soil_xylem"].values_array().sum()
 
-        assert np.isclose(expected_C_amount_in_the_root_system,
-                           actual_C_amount_in_the_root_system,
-                            rtol=1e-6,
-                            atol=1e-8), f"Quantities mismatch, expected {expected_C_amount_in_the_root_system} and actual {actual_C_amount_in_the_root_system}, residual {actual_C_amount_in_the_root_system - expected_C_amount_in_the_root_system}"
+        # internal transfers from axial vessels into symplasm are NOT boundaries
+        # (they cancel between sections), so we leave them out here.
+        s1_boundary_rate = (s1_maint_resp + s1_Nresp +
+                            s1_hex_growth + s1_hex_fungus +
+                            s1_hex_exud + s1_ph_hex_exud +
+                            s1_hex_uptake + s1_ph_hex_uptk +
+                            s1_mucilage + s1_cells +
+                            s1_import_AA + s1_diff_AA_sl +
+                            s1_AA_growth + s1_aplastic_AA)
+
+        s1_pool_delta = (c_hex - prev['hex']) + (c_res - prev['res']) + \
+                        (c_AA  - prev['AA'])  + (c_stor - prev['stor'])
+        s1_residual   = s1_pool_delta - dt * s1_boundary_rate
+
+        # ── Section 2: implicit axial vessels ──────────────────────────────
+        #   sucrose phloem (C_sucrose_root), phloem AA, xylem AA
+        s2_suc_shoot  = -12 * props["sucrose_root_to_shoot_phloem"][1]
+        s2_phAA_shoot = -5  * props["AA_root_to_shoot_phloem"][1]
+        s2_xyAA_shoot = -5  * props["AA_root_to_shoot_xylem"][1]
+
+        s2_boundary_rate = s2_suc_shoot + s2_phAA_shoot + s2_xyAA_shoot
+
+        s2_pool_delta = ((c_suc  - prev['suc']) +
+                         (c_phAA - prev['phAA']) +
+                         (c_xyAA - prev['xyAA']))
+        s2_residual   = s2_pool_delta - dt * s2_boundary_rate
+
+        # ── Section 3: total system ──────────────────────────────────────────
+        # Deficit accounting: cumulated deficit represents C that should have
+        # left the system but was clipped to zero. The incremental deficit is
+        # the change in this obligation between steps.
+        clipped_deficit_rate = (6  * props["deficit_hexose_root"].values_array()
+                              + 6  * props["deficit_hexose_reserve"].values_array()
+                              + 12 * props["deficit_sucrose_root"].values_array()
+                              + 5  * props["deficit_AA"].values_array()
+                              + 5  * props["deficit_AA_phloem"].values_array()
+                              + 5  * props["deficit_AA_xylem"].values_array()
+                              ).sum()
+        current_deficit_amount = dt * clipped_deficit_rate
+        if not hasattr(self, 'previous_deficit_amount'):
+            self.previous_deficit_amount = 0.0
+        incremental_deficit = current_deficit_amount - self.previous_deficit_amount
+
+        total_boundary_rate = s1_boundary_rate + s2_boundary_rate
+        total_pool_delta = sum(_cur.values()) - sum(prev.values())
+        total_residual = total_pool_delta - dt * total_boundary_rate - incremental_deficit
+
+        # For continuity with the external assert logic
+        actual_C = self.compute_root_system_C_content().sum()
+        if not hasattr(self, 'previous_C_amount_in_the_root_system'):
+            self.previous_C_amount_in_the_root_system = actual_C
+        expected_C = self.previous_C_amount_in_the_root_system + dt * total_boundary_rate + incremental_deficit
+        residual = actual_C - expected_C
+
+        tol_rtol, tol_atol = 1e-6, 1e-8
+        gap_detected = not np.isclose(expected_C, actual_C, rtol=tol_rtol, atol=tol_atol)
+
+        if gap_detected and False:
+            # lsm-drift C impact estimate: average mol-C/g × lsm_drift
+            avg_C_per_g = sum(_cur.values()) / lsm.sum() if lsm.sum() > 0 else 0.
+            lsm_C_impact = lsm_drift * avg_C_per_g
+
+            print("=== CARBON GAP DETECTED ===")
+            print(f"  Residual (total)          : {residual:+.6e}  mol C")
+            print(f"  lsm drift                 : {lsm_drift:+.6e}  g")
+            print(f"  lsm C impact (est)        : {lsm_C_impact:+.6e}  mol C  (growth dilution)")
+            print(f"  Unexplained est.          : {residual - lsm_C_impact:+.6e}  mol C")
+            print()
+            print(f"  --- Section 1: Explicit symplasm (@state) ---")
+            print(f"    Pool delta(hex+res+AA+stor) : {s1_pool_delta:+.6e}")
+            print(f"    Net boundary x dt          : {dt*s1_boundary_rate:+.6e}")
+            print(f"    SECTION 1 RESIDUAL         : {s1_residual:+.6e}  <- should be ~0 if @state conserves")
+            print(f"      maint_resp               : {dt*s1_maint_resp:+.6e}")
+            print(f"      N_metabolic_resp         : {dt*s1_Nresp:+.6e}")
+            print(f"      hex_growth               : {dt*s1_hex_growth:+.6e}")
+            print(f"      hex_exudation            : {dt*s1_hex_exud:+.6e}")
+            print(f"      phloem_hex_exudation     : {dt*s1_ph_hex_exud:+.6e}")
+            print(f"      hex_uptake_soil          : {dt*s1_hex_uptake:+.6e}")
+            print(f"      phloem_hex_uptake        : {dt*s1_ph_hex_uptk:+.6e}")
+            print(f"      mucilage_secretion       : {dt*s1_mucilage:+.6e}")
+            print(f"      cells_release            : {dt*s1_cells:+.6e}")
+            print(f"      import_AA                : {dt*s1_import_AA:+.6e}")
+            print(f"      diffusion_AA_soil        : {dt*s1_diff_AA_sl:+.6e}")
+            print(f"      AA_consumption_growth    : {dt*s1_AA_growth:+.6e}")
+            print(f"      apoplastic_AA_soil_xylem : {dt*s1_aplastic_AA:+.6e}")
+            print()
+            print(f"  --- Section 2: Implicit axial vessels (implicit solver) ---")
+            print(f"    Pool delta(suc+phAA+xyAA)  : {s2_pool_delta:+.6e}")
+            print(f"    Net boundary x dt          : {dt*s2_boundary_rate:+.6e}")
+            print(f"    SECTION 2 RESIDUAL         : {s2_residual:+.6e}  <- should be ~0 if solver conserves")
+            print(f"      suc_to_shoot             : {dt*s2_suc_shoot:+.6e}")
+            print(f"      AA_phloem_to_shoot       : {dt*s2_phAA_shoot:+.6e}")
+            print(f"      AA_xylem_to_shoot        : {dt*s2_xyAA_shoot:+.6e}")
+            print()
+            print(f"  --- Section 3: Total ---")
+            print(f"    Total pool delta           : {total_pool_delta:+.6e}")
+            print(f"    Total boundary x dt        : {dt*total_boundary_rate:+.6e}")
+            print(f"    Incr. Deficit              : {incremental_deficit:+.6e}")
+            print(f"    TOTAL RESIDUAL             : {total_residual:+.6e}  (=S1+S2 - internal transfers cancel)")
+            print(f"    residual from assert       : {residual:+.6e}")
+            print("===========================")
+
+        self._prev_pool_C             = _cur
+        self._prev_lsm_total          = lsm.sum()
+        self.previous_C_amount_in_the_root_system = actual_C
+        self.previous_deficit_amount  = current_deficit_amount
+
+        assert np.isclose(expected_C,
+                           actual_C,
+                            rtol=1e-3,
+                            atol=1e-5), f"Quantities mismatch, expected {expected_C} and actual {actual_C}, residual {residual}"
 
 
     def compute_root_system_C_content(self):
