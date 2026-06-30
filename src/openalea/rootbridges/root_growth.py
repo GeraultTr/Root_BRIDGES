@@ -512,8 +512,6 @@ class RootGrowthModelCoupled(*inheriting):
         """
 
         time_step = self.time_step_in_seconds
-        if time_step != 3600:
-            print("time_step_deviation!")
 
         # We initialize an empty list in which the modified apex will be added:
         new_apex_id = []
@@ -2611,10 +2609,16 @@ class RootGrowthModelCoupled(*inheriting):
                                                  amino_acids_consumption_by_growth=0.,
                                                  amino_acids_possibly_required_for_elongation=0.,
                                                  amino_acids_growth_demand=0.,
-                                                 temperature_modification=0.
-                                                 
+                                                 temperature_modification=0.,
+                                                 C_sucrose_root=0.,
+                                                 C_hexose_reserve=0.,
+                                                 phloem_AA=0.,
+                                                 xylem_AA=0.,
+                                                 storage_protein=0.,
+                                                 living_struct_mass=0.
+
                                                  )
-            
+
             return new_child
 
         # Otherwise, if identical_properties=True, then we copy most of the properties of the mother element in the new element:
@@ -2703,7 +2707,12 @@ class RootGrowthModelCoupled(*inheriting):
                                                  amino_acids_consumption_by_growth=0.,
                                                  amino_acids_possibly_required_for_elongation=0.,
                                                  amino_acids_growth_demand=0.,
-                                                 temperature_modification=mother_element.temperature_modification
+                                                 temperature_modification=mother_element.temperature_modification,
+                                                 C_sucrose_root=mother_element.C_sucrose_root,
+                                                 C_hexose_reserve=mother_element.C_hexose_reserve,
+                                                 phloem_AA=mother_element.phloem_AA,
+                                                 xylem_AA=mother_element.xylem_AA,
+                                                 storage_protein=mother_element.storage_protein
                                                  )
-            
+
             return new_child
