@@ -635,7 +635,7 @@ class RootCNUnified(*inheriting):
         df = pd.DataFrame(self.track_residuals)
         rmse = np.sqrt(np.sum(df["r_total"].to_numpy() ** 2))
         current_percentage = 100 * rmse / total_C_amount
-        print(f"RMSE {rmse:+.3e} mol C, in percentage total C balance: {current_percentage:+.3e}%")
+        # print(f"RMSE {rmse:+.3e} mol C, in percentage total C balance: {current_percentage:+.3e}%")
 
         assert current_percentage < 5., f"ERROR, RMSE exceeds 5% of current C poool: RMSE {rmse:+.3e} accounts for {current_percentage}%"
 
