@@ -49,15 +49,15 @@ class RootCNUnified(*inheriting):
     
     # @note SUMMED STATE VARIABLES
 
-    sucrose_root_to_shoot_phloem: float =       declare(default=-1e-6, unit="mol.s-1", unit_comment="of sucrose", description="",
+    sucrose_root_to_shoot_phloem: float =       declare(default=-1e-10, unit="mol.s-1", unit_comment="of sucrose", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
-                                                variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+                                                variable_type="plant_scale_state", by="model_cn", state_variable_type="", edit_by="user")
     Cv_sucrose_average: float =                   declare(default=1., unit="mol.m-3", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
-                                                variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+                                                variable_type="plant_scale_state", by="model_cn", state_variable_type="", edit_by="user")
     Cv_hexose_average: float =                   declare(default=1., unit="mol.m-3", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
-                                                variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+                                                variable_type="plant_scale_state", by="model_cn", state_variable_type="", edit_by="user")
     Cv_sucrose_root: float =                   declare(default=1., unit="mol.m-3", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="state_variable", by="model_cn", state_variable_type="", edit_by="user")
