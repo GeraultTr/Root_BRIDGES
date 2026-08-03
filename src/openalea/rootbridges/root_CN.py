@@ -29,6 +29,12 @@ class RootCNUnified(*inheriting):
     AA_phloem_shoot: float = declare(default=1 / 12 / 1e6, unit="mol", unit_comment="of amino acids", description="", 
                                        min_value=0, max_value=1200, value_comment="", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
+    sucrose_phloem_contributors_flow: float = declare(default=30e-6 / 3600 / 12, unit="mol.s-1", unit_comment="of sucrose", description="", 
+                                       min_value=0, max_value=1200, value_comment="", references="", DOI="",
+                                        variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
+    AA_phloem_contributors_flow: float = declare(default=1e-6 / 3600 / 1.4, unit="mol.s-1", unit_comment="of amino acids", description="", 
+                                       min_value=0, max_value=1200, value_comment="", references="", DOI="",
+                                        variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
 
     # FROM GROWTH MODEL
     amino_acids_consumption_by_growth: float = declare(default=0., unit="mol.s-1", unit_comment="", description="amino_acids consumption rate by growth processes", 
@@ -50,7 +56,7 @@ class RootCNUnified(*inheriting):
     # @note SUMMED STATE VARIABLES
 
     sucrose_root_to_shoot_phloem: float =       declare(default=-1e-10, unit="mol.s-1", unit_comment="of sucrose", description="",
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                min_value="", max_value="", value_comment="WARNING: value has to be non 0 for proper water flow computation at init", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_cn", state_variable_type="", edit_by="user")
     Cv_sucrose_average: float =                   declare(default=1., unit="mol.m-3", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
@@ -463,19 +469,23 @@ class RootCNUnified(*inheriting):
         if not hasattr(self, "track_residuals"):
             self.track_residuals = []
 
+        vertex_index = props["vertex_index"] 
+        focus_vids  = np.asarray(props["focus_elements"], dtype=np.int64)        # (n,)
+        focus_glob_idx  = vertex_index.indices_of(focus_vids)
+
         # ── Structural mass ──────────────────────────────────────────────────
-        lsm  = props["living_struct_mass"].values_array()
+        lsm  = props["living_struct_mass"].values_array()[focus_glob_idx]
 
         # ── Pool snapshots (mol-C per pool) ──────────────────────────────────
         # mol-C = C_weight × massic_conc × lsm
         # C-weights: hexose=7, sucrose=12, reserve=6, storage_protein≈5×65, AA=5
-        _hex_arr  = props["C_hexose_root"].values_array()
-        _suc_arr  = props["C_sucrose_root"].values_array()
-        _res_arr  = props["C_hexose_reserve"].values_array()
-        _stor_arr = props["storage_protein"].values_array()
-        _AA_arr   = props["AA"].values_array()
-        _phAA_arr = props["phloem_AA"].values_array()
-        _xyAA_arr = props["xylem_AA"].values_array()
+        _hex_arr  = props["C_hexose_root"].values_array()[focus_glob_idx]
+        _suc_arr  = props["C_sucrose_root"].values_array()[focus_glob_idx]
+        _res_arr  = props["C_hexose_reserve"].values_array()[focus_glob_idx]
+        _stor_arr = props["storage_protein"].values_array()[focus_glob_idx]
+        _AA_arr   = props["AA"].values_array()[focus_glob_idx]
+        _phAA_arr = props["phloem_AA"].values_array()[focus_glob_idx]
+        _xyAA_arr = props["xylem_AA"].values_array()[focus_glob_idx]
 
         c_hex  = (6    * _hex_arr  * lsm).sum()
         c_suc  = (12   * _suc_arr  * lsm).sum()
@@ -499,35 +509,35 @@ class RootCNUnified(*inheriting):
         #   storage_prot: via _storage_protein @state
         #
         #   Boundary terms that cross the root system boundary:
-        stp_symp_maint_resp  = -1  * props["maintenance_respiration"].values_array().sum()
-        stp_symp_Nresp       = -1  * props["N_metabolic_respiration"].values_array().sum()
-        stp_symp_hex_growth  = -6  * props["hexose_consumption_by_growth"].values_array().sum()
-        stp_symp_hex_fungus  = -6  * props["hexose_consumption_by_fungus"].values_array().sum()
-        stp_symp_hex_exud    = -6  * props["hexose_exudation"].values_array().sum()
-        stp_symp_ph_hex_exud = -6  * props["phloem_hexose_exudation"].values_array().sum()
-        stp_symp_hex_uptake  = +6  * props["hexose_uptake_from_soil"].values_array().sum()
-        stp_symp_ph_hex_uptk = +6  * props["phloem_hexose_uptake_from_soil"].values_array().sum()
-        stp_symp_mucilage    = -6  * props["mucilage_secretion"].values_array().sum()
-        stp_symp_cells       = -6  * props["cells_release"].values_array().sum()
-        stp_symp_import_AA   = +5  * props["import_AA"].values_array().sum()
-        stp_symp_diff_AA_sl  = -5  * props["diffusion_AA_soil"].values_array().sum()
-        stp_symp_AA_growth   = -5  * props["amino_acids_consumption_by_growth"].values_array().sum()
-        stp_symp_aplastic_AA = -5  * props["apoplastic_AA_soil_xylem"].values_array().sum()
+        stp_symp_maint_resp  = -1  * props["maintenance_respiration"].values_array()[focus_glob_idx].sum()
+        stp_symp_Nresp       = -1  * props["N_metabolic_respiration"].values_array()[focus_glob_idx].sum()
+        stp_symp_hex_growth  = -6  * props["hexose_consumption_by_growth"].values_array()[focus_glob_idx].sum()
+        stp_symp_hex_fungus  = -6  * props["hexose_consumption_by_fungus"].values_array()[focus_glob_idx].sum()
+        stp_symp_hex_exud    = -6  * props["hexose_exudation"].values_array()[focus_glob_idx].sum()
+        stp_symp_ph_hex_exud = -6  * props["phloem_hexose_exudation"].values_array()[focus_glob_idx].sum()
+        stp_symp_hex_uptake  = +6  * props["hexose_uptake_from_soil"].values_array()[focus_glob_idx].sum()
+        stp_symp_ph_hex_uptk = +6  * props["phloem_hexose_uptake_from_soil"].values_array()[focus_glob_idx].sum()
+        stp_symp_mucilage    = -6  * props["mucilage_secretion"].values_array()[focus_glob_idx].sum()
+        stp_symp_cells       = -6  * props["cells_release"].values_array()[focus_glob_idx].sum()
+        stp_symp_import_AA   = +5  * props["import_AA"].values_array()[focus_glob_idx].sum()
+        stp_symp_diff_AA_sl  = -5  * props["diffusion_AA_soil"].values_array()[focus_glob_idx].sum()
+        stp_symp_AA_growth   = -5  * props["amino_acids_consumption_by_growth"].values_array()[focus_glob_idx].sum()
+        stp_symp_aplastic_AA = -5  * props["apoplastic_AA_soil_xylem"].values_array()[focus_glob_idx].sum()
 
         # Internal transport flows between symplasm and xylem / phloem pools
         # Sucrose
-        stp_symp_diff_suc_tosymp  = 6 * props["hexose_diffusion_from_phloem"].values_array().sum()
-        stp_symp_active_suc_tosymp  = 6 * props["hexose_active_production_from_phloem"].values_array().sum()
-        stp_symp_active_suc_toph  = - 12 * props["sucrose_loading_in_phloem"].values_array().sum()
+        stp_symp_diff_suc_tosymp  = 6 * props["hexose_diffusion_from_phloem"].values_array()[focus_glob_idx].sum()
+        stp_symp_active_suc_tosymp  = 6 * props["hexose_active_production_from_phloem"].values_array()[focus_glob_idx].sum()
+        stp_symp_active_suc_toph  = - 12 * props["sucrose_loading_in_phloem"].values_array()[focus_glob_idx].sum()
 
         # Phloem AA
-        stp_symp_active_phaa_toph = - 5 * props["loading_AA_phloem"].values_array().sum()
-        stp_symp_diff_phaa_tosymp  = 5 * props["diffusion_AA_phloem"].values_array().sum()
-        stp_symp_active_phaa_tosymp  = 5 * props["unloading_AA_phloem"].values_array().sum()
+        stp_symp_active_phaa_toph = - 5 * props["loading_AA_phloem"].values_array()[focus_glob_idx].sum()
+        stp_symp_diff_phaa_tosymp  = 5 * props["diffusion_AA_phloem"].values_array()[focus_glob_idx].sum()
+        stp_symp_active_phaa_tosymp  = 5 * props["unloading_AA_phloem"].values_array()[focus_glob_idx].sum()
 
         # Xylem AA
-        stp_symp_active_xyaa_toxy = - 5 * props["export_AA"].values_array().sum()
-        stp_symp_diff_xyaa_tosymp = 5 * props["diffusion_AA_xylem"].values_array().sum()
+        stp_symp_active_xyaa_toxy = - 5 * props["export_AA"].values_array()[focus_glob_idx].sum()
+        stp_symp_diff_xyaa_tosymp = 5 * props["diffusion_AA_xylem"].values_array()[focus_glob_idx].sum()
 
         # internal transfers from axial vessels into symplasm are NOT boundaries
         # (they cancel between sections), so we leave them out here.
@@ -550,16 +560,16 @@ class RootCNUnified(*inheriting):
                             stp_symp_active_xyaa_toxy + stp_symp_diff_xyaa_tosymp
                             )
 
-        clipped_deficit_rate = (6  * props["deficit_hexose_root"].values_array()
-                              + 6  * props["deficit_hexose_reserve"].values_array()
-                              + 12 * props["deficit_sucrose_root"].values_array()
-                              + 5  * props["deficit_AA"].values_array()
-                              + 5  * props["deficit_AA_phloem"].values_array()
-                              + 5  * props["deficit_AA_xylem"].values_array()
+        clipped_deficit_rate = (6  * props["deficit_hexose_root"].values_array()[focus_glob_idx]
+                              + 6  * props["deficit_hexose_reserve"].values_array()[focus_glob_idx]
+                              + 12 * props["deficit_sucrose_root"].values_array()[focus_glob_idx]
+                              + 5  * props["deficit_AA"].values_array()[focus_glob_idx]
+                              + 5  * props["deficit_AA_phloem"].values_array()[focus_glob_idx]
+                              + 5  * props["deficit_AA_xylem"].values_array()[focus_glob_idx]
                               ).sum()
-        clipped_deficit_rate_symp = (6  * props["deficit_hexose_root"].values_array()
-                              + 6  * props["deficit_hexose_reserve"].values_array()
-                              + 5  * props["deficit_AA"].values_array()
+        clipped_deficit_rate_symp = (6  * props["deficit_hexose_root"].values_array()[focus_glob_idx]
+                              + 6  * props["deficit_hexose_reserve"].values_array()[focus_glob_idx]
+                              + 5  * props["deficit_AA"].values_array()[focus_glob_idx]
                               ).sum()
         current_deficit_amount = dt * clipped_deficit_rate
         current_deficit_amount_symp = dt * clipped_deficit_rate_symp
@@ -583,13 +593,13 @@ class RootCNUnified(*inheriting):
         stp_vessels_phAA_shoot_inflow = -5  * props["AA_root_to_shoot_phloem"][1]
         stp_vessels_xyAA_shoot_outflow = 5  * props["AA_root_to_shoot_xylem"][1]
 
-        radial_suc_inflows = 12 * (- props["hexose_diffusion_from_phloem"].values_array() / 2.
-                            - props["hexose_active_production_from_phloem"].values_array() / 2.
-                            - props["phloem_hexose_exudation"].values_array() / 2.
-                            + props["sucrose_loading_in_phloem"].values_array()
-                            + props["phloem_hexose_uptake_from_soil"].values_array() / 2.).sum()
-        radial_xyAA_inflows = 5 * (props["export_AA"].values_array() - props["apoplastic_AA_soil_xylem"].values_array() - props["diffusion_AA_xylem"].values_array()).sum()
-        radial_phAA_inflows = 5 * (props["loading_AA_phloem"].values_array() - props["diffusion_AA_phloem"].values_array() - props["unloading_AA_phloem"].values_array()).sum()
+        radial_suc_inflows = 12 * (- props["hexose_diffusion_from_phloem"].values_array()[focus_glob_idx] / 2.
+                            - props["hexose_active_production_from_phloem"].values_array()[focus_glob_idx] / 2.
+                            - props["phloem_hexose_exudation"].values_array()[focus_glob_idx] / 2.
+                            + props["sucrose_loading_in_phloem"].values_array()[focus_glob_idx]
+                            + props["phloem_hexose_uptake_from_soil"].values_array()[focus_glob_idx] / 2.).sum()
+        radial_xyAA_inflows = 5 * (props["export_AA"].values_array()[focus_glob_idx] - props["apoplastic_AA_soil_xylem"].values_array()[focus_glob_idx] - props["diffusion_AA_xylem"].values_array()[focus_glob_idx]).sum()
+        radial_phAA_inflows = 5 * (props["loading_AA_phloem"].values_array()[focus_glob_idx] - props["diffusion_AA_phloem"].values_array()[focus_glob_idx] - props["unloading_AA_phloem"].values_array()[focus_glob_idx]).sum()
 
         stp_vessels_shoot_root_boundary_rate = stp_vessels_suc_shoot_inflow + stp_vessels_phAA_shoot_inflow - stp_vessels_xyAA_shoot_outflow
         stp_vessels_radial_vessels_boundary_rate = radial_suc_inflows + radial_phAA_inflows + radial_xyAA_inflows
