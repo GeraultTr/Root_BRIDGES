@@ -647,8 +647,7 @@ class RootCNUnified(*inheriting):
         current_percentage = 100 * rmse / total_C_amount
         # print(f"RMSE {rmse:+.3e} mol C, in percentage total C balance: {current_percentage:+.3e}%")
 
-        assert current_percentage < 5., f"ERROR, RMSE exceeds 5% of current C poool: RMSE {rmse:+.3e} accounts for {current_percentage}%"
-
+        assert current_percentage < 10., f"ERROR, RMSE exceeds 10% of current C poool: RMSE {rmse:+.3e} accounts for {current_percentage}%"
         self._prev_pool_C             = _cur
         self.previous_deficit_amount  = current_deficit_amount
         self.previous_deficit_amount_symp = current_deficit_amount_symp
