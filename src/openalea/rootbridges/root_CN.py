@@ -17,9 +17,12 @@ class RootCNUnified(*inheriting):
     # @note INPUTS
 
     # FROM SHOOT MODEL
-    Cv_sucrose_phloem_collar: float = declare(default=950, unit="mol.m-3", unit_comment="", description="Sucrose volumic concentration in phloem at collar point", 
-                                       min_value=0, max_value=1200, value_comment="", references="Winter et al. 1992", DOI="",
-                                        variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
+    Cv_phloem_sucrose_collar: float = declare(default=950, unit="mol.m-3", unit_comment="", description="Sucrose volumic concentration of the shoot phloem pool entering the collar, computed by the collar coupling", 
+                                       min_value=0, max_value=1200, value_comment="Default only used at initialization", references="Winter et al. 1992", DOI="",
+                                        variable_type="plant_scale_state", by="model_cn", state_variable_type="", edit_by="user")
+    Cv_phloem_solutes_collar: float = declare(default=1700, unit="mol.m-3", unit_comment="of total solutes", description="Total solutes volumic concentration of the shoot phloem pool entering the collar, computed by the collar coupling", 
+                                       min_value=0, max_value="", value_comment="Default only used at initialization, 950 / (1 - 0.4) + AA", references="", DOI="",
+                                        variable_type="plant_scale_state", by="model_cn", state_variable_type="", edit_by="user")
     mstruct_axis_shoot: float = declare(default=0.0541, unit="g", unit_comment="", description="Total axis initial structural mass, shoot because it cannot have the same variable name as the shoot model to avoid confusion", 
                                        min_value=0, max_value=1200, value_comment="", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
@@ -40,15 +43,21 @@ class RootCNUnified(*inheriting):
     amino_acids_consumption_by_growth: float = declare(default=0., unit="mol.s-1", unit_comment="", description="amino_acids consumption rate by growth processes", 
                                                  min_value="", max_value="", value_comment="", references="", DOI="",
                                                   variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
+    hexose_potential_demand_for_elongation: float = declare(default=0., unit="mol.s-1", unit_comment="of hexose", description="Hexose demand of the apex potential elongation, spread over its supply zone",
+                                                 min_value="", max_value="", value_comment="", references="", DOI="",
+                                                  variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
+    amino_acids_potential_demand_for_elongation: float = declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="Amino acids demand of the apex potential elongation, spread over its supply zone",
+                                                 min_value="", max_value="", value_comment="", references="", DOI="",
+                                                  variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
 
     # @note STATE VARIABLES
 
     N_metabolic_respiration: float = declare(default=0., unit="mol.s-1", unit_comment="of carbon", description="Respiration related to nitrogen metabolism", 
                                             min_value="", max_value="", value_comment="", references="", DOI="",
                                              variable_type="state_variable", by="model_cn", state_variable_type="NonInertialExtensive", edit_by="user")
-    nitrate_transporters_affinity_factor: float = declare(default=1., unit="mol.s-1", unit_comment="of nitrates", description="nitrate_transporters_affinity_factor, introduced to account for NRT1 signalling function when going through LATS regime", 
-                                                    min_value="", max_value="", value_comment="", references="Remans et al 2006", DOI="", 
-                                                    variable_type="state_variable", by="model_cn", state_variable_type="NonInertialIntensive", edit_by="user")
+    hexose_convective_unloading_from_phloem: float = declare(default=0., unit="mol.s-1", unit_comment="of hexose", description="Sucrose carried by phloem sap drawn by the growing zone, expressed as hexose",
+                                            min_value="", max_value="", value_comment="", references="Gould et al. 2004; Ross-Elliott et al. 2017", DOI="",
+                                             variable_type="state_variable", by="model_cn", state_variable_type="NonInertialExtensive", edit_by="user")
     total_hexose_diffusion_from_phloem: float = declare(default=0., unit="umol of C.g-1 mstruc.h-1", unit_comment="", description="Property computed to compare with shoot model unloading",
                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                     variable_type="plant_scale_state", by="model_cn", state_variable_type="", edit_by="user")
@@ -90,8 +99,11 @@ class RootCNUnified(*inheriting):
     massic_reference_rate_of_hexose_consumption_by_growth: float = declare(default=1.39e-9, unit="mol.s-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
                                                 min_value="", max_value="", value_comment="", references="Reference consumption rate of hexose for growth for a given root element (used to multiply the reference unloading rate when growth has consumed hexose)", DOI="",
                                                 variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
-    
-    
+    unloading_driven_by_potential_demand: bool = declare(default=True, unit="", unit_comment="", description="If True, the phloem unloading boost uses the potential elongation demand instead of the actual growth consumption, avoiding the starved tip trap",
+                                                min_value="", max_value="", value_comment="", references="Sink strength set by apical diameter (Thaler & Pagès 1998; Pagès et al. 2014)", DOI="",
+                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+
+
     def __init__(self, g, time_step: int,  **scenario: dict):
         """
         DESCRIPTION
@@ -118,8 +130,8 @@ class RootCNUnified(*inheriting):
 
         # self.total_root_sucrose_and_living_struct_mass() # Needed otherwise first shoot unloading will be unrealistic
 
-        self.solute_configs["C_sucrose_root"] = {
-        "solute_massic_concentration_prop": "C_sucrose_root",
+        self.solute_configs["phloem_sucrose"] = {
+        "solute_massic_concentration_prop": "phloem_sucrose",
         "solute_massic_concentration_symplasm": "C_hexose_root",
         "diffusive_flux_name": "hexose_diffusion_from_phloem",
         "diffusive_flux_conversion": - 1 / 2,
@@ -132,8 +144,11 @@ class RootCNUnified(*inheriting):
                                         - phloem_hexose_exudation / 2.
                                         + sucrose_loading_in_phloem
                                         + phloem_hexose_uptake_from_soil / 2.),
+        "growth_water_prop": "growth_zone_water_phloem",
+        "convective_flux_name": "hexose_convective_unloading_from_phloem",
+        "convective_flux_conversion": 2,
         "flux_shoot_boundary": lambda props: props["sucrose_input_rate"][1],
-        "boundary_shoot_solute_concentration": lambda props: props["Cv_sucrose_phloem_collar"][1],
+        "boundary_shoot_solute_concentration": lambda props: props["Cv_phloem_sucrose_collar"][1],
         "solute_flux_to_shoot": "sucrose_root_to_shoot_phloem",
         "solute_volumic_concentration_bounds": (1e-4, 3e3),
         }
@@ -167,13 +182,15 @@ class RootCNUnified(*inheriting):
     
 
     @rate
-    def _hexose_diffusion_from_phloem(self, type, length, label, root_order, phloem_exchange_surface, C_sucrose_root, C_hexose_root,
-                                             hexose_consumption_by_growth, deficit_hexose_root, living_struct_mass, symplasmic_volume, phloem_volume, soil_temperature):
+    def _hexose_diffusion_from_phloem(self, type, length, label, root_order, phloem_exchange_surface, phloem_sucrose, C_hexose_root,
+                                             hexose_consumption_by_growth, hexose_potential_demand_for_elongation, deficit_hexose_root, living_struct_mass, symplasmic_volume, phloem_volume, soil_temperature):
         """
         Superimposing original, staying with a massic concentration gradient as fist approximation to avoid changing parameters
         """
+        if self.unloading_driven_by_potential_demand:
+            hexose_consumption_by_growth = hexose_potential_demand_for_elongation
 
-        Cv_sucrose_root = C_sucrose_root * living_struct_mass / phloem_volume
+        Cv_sucrose_root = phloem_sucrose * living_struct_mass / phloem_volume
         Cv_hexose_root = C_hexose_root * living_struct_mass / symplasmic_volume
 
         reference_rate_of_hexose_consumption_by_growth = self.reference_rate_of_hexose_consumption_by_growth
@@ -203,11 +220,13 @@ class RootCNUnified(*inheriting):
 
    
     @rate
-    def _hexose_active_production_from_phloem(self, type, C_sucrose_root, length, phloem_exchange_surface,
-                                              hexose_consumption_by_growth, soil_temperature):
+    def _hexose_active_production_from_phloem(self, type, phloem_sucrose, length, phloem_exchange_surface,
+                                              hexose_consumption_by_growth, hexose_potential_demand_for_elongation, soil_temperature):
         """
         Superimposing original, staying with a massic concentration gradient as fist approximation to avoid changing parameters
         """
+        if self.unloading_driven_by_potential_demand:
+            hexose_consumption_by_growth = hexose_potential_demand_for_elongation
         # Removed condition to limit based on deficit compared to RhizoDep
         max_unloading_rate = self.max_unloading_rate * (1 + hexose_consumption_by_growth /
                                                         self.reference_rate_of_hexose_consumption_by_growth)
@@ -218,13 +237,15 @@ class RootCNUnified(*inheriting):
                                                             C=self.phloem_unloading_C)
         
         return np.where((length <= 0.) | (phloem_exchange_surface <= 0.) | (type == self.type_Just_dead) | (type == self.type_Dead), 0.,
-                        np.maximum(2. * max_unloading_rate * C_sucrose_root * phloem_exchange_surface / (
-                        self.Km_unloading + C_sucrose_root), 0))
+                        np.maximum(2. * max_unloading_rate * phloem_sucrose * phloem_exchange_surface / (
+                        self.Km_unloading + phloem_sucrose), 0))
     
 
     @rate
-    def _diffusion_AA_phloem(self, label, amino_acids_consumption_by_growth, deficit_AA, AA, phloem_AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, phloem_volume):
+    def _diffusion_AA_phloem(self, type, label, amino_acids_consumption_by_growth, amino_acids_potential_demand_for_elongation, deficit_AA, AA, phloem_AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, phloem_volume):
         """ Passive radial diffusion between phloem and cortex through plasmodesmata """
+        if self.unloading_driven_by_potential_demand:
+            amino_acids_consumption_by_growth = amino_acids_potential_demand_for_elongation
 
         reference_rate_of_AA_consumption_by_growth = self.reference_rate_of_AA_consumption_by_growth
         # reference_rate_of_AA_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_AA_consumption_by_growth/1, reference_rate_of_AA_consumption_by_growth)
@@ -247,7 +268,9 @@ class RootCNUnified(*inheriting):
 
 
     @rate
-    def _unloading_AA_phloem(self, phloem_AA, amino_acids_consumption_by_growth, phloem_exchange_surface, soil_temperature, living_struct_mass, phloem_volume):
+    def _unloading_AA_phloem(self, phloem_AA, amino_acids_consumption_by_growth, amino_acids_potential_demand_for_elongation, phloem_exchange_surface, soil_temperature, living_struct_mass, phloem_volume):
+        if self.unloading_driven_by_potential_demand:
+            amino_acids_consumption_by_growth = amino_acids_potential_demand_for_elongation
         Cv_AA_phloem = (phloem_AA * living_struct_mass) / phloem_volume
         
         vmax_unloading_AA_phloem = self.vmax_unloading_AA_phloem * (1 + amino_acids_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
@@ -268,7 +291,7 @@ class RootCNUnified(*inheriting):
     def _C_hexose_root(self, C_hexose_root, living_struct_mass, hexose_exudation, hexose_uptake_from_soil,
                            mucilage_secretion, cells_release, maintenance_respiration,
                            hexose_consumption_by_growth, hexose_consumption_by_fungus, hexose_diffusion_from_phloem,
-                           hexose_active_production_from_phloem, sucrose_loading_in_phloem,
+                           hexose_active_production_from_phloem, hexose_convective_unloading_from_phloem, sucrose_loading_in_phloem,
                            hexose_mobilization_from_reserve, hexose_immobilization_as_reserve, deficit_hexose_root, 
                            AA_synthesis, AA_catabolism, N_metabolic_respiration) -> tuple[float, str, float]:
         """
@@ -288,6 +311,7 @@ class RootCNUnified(*inheriting):
         _hexose_consumption_by_fungus = hexose_consumption_by_fungus * f
         _hexose_diffusion_from_phloem = hexose_diffusion_from_phloem * f
         _hexose_active_production_from_phloem = hexose_active_production_from_phloem * f
+        _hexose_convective_unloading_from_phloem = hexose_convective_unloading_from_phloem * f
         _sucrose_loading_in_phloem = sucrose_loading_in_phloem * f
         _hexose_mobilization_from_reserve = hexose_mobilization_from_reserve * f
         _hexose_immobilization_as_reserve = hexose_immobilization_as_reserve * f
@@ -299,6 +323,7 @@ class RootCNUnified(*inheriting):
         inflow =  (_hexose_uptake_from_soil
                 + _hexose_diffusion_from_phloem
                 + _hexose_active_production_from_phloem
+                + _hexose_convective_unloading_from_phloem
                 + _hexose_mobilization_from_reserve
                 + _AA_catabolism * self.r_hexose_AA)
         
@@ -337,12 +362,13 @@ class RootCNUnified(*inheriting):
 
 
     @state
-    def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, loading_AA_phloem, import_AA, diffusion_AA_soil, diffusion_AA_xylem, export_AA, AA_synthesis,
+    def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, convective_unloading_AA_phloem, loading_AA_phloem, import_AA, diffusion_AA_soil, diffusion_AA_xylem, export_AA, AA_synthesis,
                   amino_acids_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA) -> tuple[float, str, float]:
         
         f = 1e13 # arbitrary
         _diffusion_AA_phloem = diffusion_AA_phloem * f
         _unloading_AA_phloem = unloading_AA_phloem * f
+        _convective_unloading_AA_phloem = convective_unloading_AA_phloem * f
         _loading_AA_phloem = loading_AA_phloem * f
         _import_AA = import_AA * f
         _AA_synthesis = AA_synthesis * f
@@ -357,6 +383,7 @@ class RootCNUnified(*inheriting):
 
         inflow = (_diffusion_AA_phloem
                 + _unloading_AA_phloem
+                + _convective_unloading_AA_phloem
                 + _diffusion_AA_xylem
                 + _import_AA
                 + _AA_synthesis
@@ -392,21 +419,21 @@ class RootCNUnified(*inheriting):
 
     
     @state
-    def _C_solutes_phloem(self, C_sucrose_root, phloem_AA):
+    def _C_solutes_phloem(self, phloem_sucrose, phloem_AA):
         """
         Sucrose could not be included before because phloem massic concentrations were not computed with volumic considerations
         """
         ions_proportion = 0.4 # To account for high 300 mM concentrations of potassium in phloem sap, related to sucrose symport co-transport Diant et al. 2010
-        return (C_sucrose_root) / (1 - ions_proportion) + phloem_AA
+        return (phloem_sucrose) / (1 - ions_proportion) + phloem_AA
     
 
     @totalstate
-    def _Cv_sucrose_average(self, C_sucrose_root, living_struct_mass, phloem_volume):
+    def _Cv_sucrose_average(self, phloem_sucrose, living_struct_mass, phloem_volume):
         total_amount = 0
         total_volume = 0
         for vid in living_struct_mass.keys():
             if living_struct_mass[vid] > 0:
-                total_amount += C_sucrose_root[vid] * living_struct_mass[vid]
+                total_amount += phloem_sucrose[vid] * living_struct_mass[vid]
                 total_volume += phloem_volume[vid]
         return total_amount / total_volume
 
@@ -423,7 +450,7 @@ class RootCNUnified(*inheriting):
     # @note Disable processes from base components
 
     @state
-    def _C_sucrose_root(self):
+    def _phloem_sucrose(self):
         """
         Handled by the heterogeneous axial transport model now
         """
@@ -437,8 +464,8 @@ class RootCNUnified(*inheriting):
         return
 
     @state
-    def _Cv_sucrose_root(self, C_sucrose_root, living_struct_mass, phloem_volume):
-        return np.where(phloem_volume > 0., C_sucrose_root * living_struct_mass / np.where(phloem_volume > 0., phloem_volume, 1.), 0.)
+    def _Cv_sucrose_root(self, phloem_sucrose, living_struct_mass, phloem_volume):
+        return np.where(phloem_volume > 0., phloem_sucrose * living_struct_mass / np.where(phloem_volume > 0., phloem_volume, 1.), 0.)
     
     
     @state
@@ -456,7 +483,7 @@ class RootCNUnified(*inheriting):
         Section 1 – Explicit symplasm pools (@state-updated):
             C_hexose_root, C_hexose_reserve, AA, storage_protein
         Section 2 – Implicit axial vessel pools (implicit-solver-updated):
-            C_sucrose_root, phloem_AA, xylem_AA
+            phloem_sucrose, phloem_AA, xylem_AA
         Section 3 – Total system (Sections 1+2 combined)
 
         For each section, residual = actual_Δpool - net_boundary_C_flows × dt.
@@ -480,7 +507,7 @@ class RootCNUnified(*inheriting):
         # mol-C = C_weight × massic_conc × lsm
         # C-weights: hexose=7, sucrose=12, reserve=6, storage_protein≈5×65, AA=5
         _hex_arr  = props["C_hexose_root"].values_array()[focus_glob_idx]
-        _suc_arr  = props["C_sucrose_root"].values_array()[focus_glob_idx]
+        _suc_arr  = props["phloem_sucrose"].values_array()[focus_glob_idx]
         _res_arr  = props["C_hexose_reserve"].values_array()[focus_glob_idx]
         _stor_arr = props["storage_protein"].values_array()[focus_glob_idx]
         _AA_arr   = props["AA"].values_array()[focus_glob_idx]
@@ -528,12 +555,14 @@ class RootCNUnified(*inheriting):
         # Sucrose
         stp_symp_diff_suc_tosymp  = 6 * props["hexose_diffusion_from_phloem"].values_array()[focus_glob_idx].sum()
         stp_symp_active_suc_tosymp  = 6 * props["hexose_active_production_from_phloem"].values_array()[focus_glob_idx].sum()
+        stp_symp_conv_suc_tosymp  = 6 * props["hexose_convective_unloading_from_phloem"].values_array()[focus_glob_idx].sum()
         stp_symp_active_suc_toph  = - 12 * props["sucrose_loading_in_phloem"].values_array()[focus_glob_idx].sum()
 
         # Phloem AA
         stp_symp_active_phaa_toph = - 5 * props["loading_AA_phloem"].values_array()[focus_glob_idx].sum()
         stp_symp_diff_phaa_tosymp  = 5 * props["diffusion_AA_phloem"].values_array()[focus_glob_idx].sum()
         stp_symp_active_phaa_tosymp  = 5 * props["unloading_AA_phloem"].values_array()[focus_glob_idx].sum()
+        stp_symp_conv_phaa_tosymp  = 5 * props["convective_unloading_AA_phloem"].values_array()[focus_glob_idx].sum()
 
         # Xylem AA
         stp_symp_active_xyaa_toxy = - 5 * props["export_AA"].values_array()[focus_glob_idx].sum()
@@ -555,8 +584,8 @@ class RootCNUnified(*inheriting):
                             stp_symp_mucilage + stp_symp_cells +
                             stp_symp_import_AA + stp_symp_diff_AA_sl +
                             stp_symp_AA_growth + 
-                            stp_symp_diff_suc_tosymp + stp_symp_active_suc_tosymp + stp_symp_active_suc_toph +
-                            stp_symp_active_phaa_toph + stp_symp_diff_phaa_tosymp + stp_symp_active_phaa_tosymp + 
+                            stp_symp_diff_suc_tosymp + stp_symp_active_suc_tosymp + stp_symp_conv_suc_tosymp + stp_symp_active_suc_toph +
+                            stp_symp_active_phaa_toph + stp_symp_diff_phaa_tosymp + stp_symp_active_phaa_tosymp + stp_symp_conv_phaa_tosymp + 
                             stp_symp_active_xyaa_toxy + stp_symp_diff_xyaa_tosymp
                             )
 
@@ -588,18 +617,19 @@ class RootCNUnified(*inheriting):
         stp_symp_residual_percentage = 100 * stp_symp_residual / stp_symp_C_amount
 
         # ── Section 3: implicit axial vessels ──────────────────────────────
-        #   sucrose phloem (C_sucrose_root), phloem AA, xylem AA
+        #   sucrose phloem (phloem_sucrose), phloem AA, xylem AA
         stp_vessels_suc_shoot_inflow  = -12 * props["sucrose_root_to_shoot_phloem"][1]
         stp_vessels_phAA_shoot_inflow = -5  * props["AA_root_to_shoot_phloem"][1]
         stp_vessels_xyAA_shoot_outflow = 5  * props["AA_root_to_shoot_xylem"][1]
 
         radial_suc_inflows = 12 * (- props["hexose_diffusion_from_phloem"].values_array()[focus_glob_idx] / 2.
                             - props["hexose_active_production_from_phloem"].values_array()[focus_glob_idx] / 2.
+                            - props["hexose_convective_unloading_from_phloem"].values_array()[focus_glob_idx] / 2.
                             - props["phloem_hexose_exudation"].values_array()[focus_glob_idx] / 2.
                             + props["sucrose_loading_in_phloem"].values_array()[focus_glob_idx]
                             + props["phloem_hexose_uptake_from_soil"].values_array()[focus_glob_idx] / 2.).sum()
         radial_xyAA_inflows = 5 * (props["export_AA"].values_array()[focus_glob_idx] - props["apoplastic_AA_soil_xylem"].values_array()[focus_glob_idx] - props["diffusion_AA_xylem"].values_array()[focus_glob_idx]).sum()
-        radial_phAA_inflows = 5 * (props["loading_AA_phloem"].values_array()[focus_glob_idx] - props["diffusion_AA_phloem"].values_array()[focus_glob_idx] - props["unloading_AA_phloem"].values_array()[focus_glob_idx]).sum()
+        radial_phAA_inflows = 5 * (props["loading_AA_phloem"].values_array()[focus_glob_idx] - props["diffusion_AA_phloem"].values_array()[focus_glob_idx] - props["unloading_AA_phloem"].values_array()[focus_glob_idx] - props["convective_unloading_AA_phloem"].values_array()[focus_glob_idx]).sum()
 
         stp_vessels_shoot_root_boundary_rate = stp_vessels_suc_shoot_inflow + stp_vessels_phAA_shoot_inflow - stp_vessels_xyAA_shoot_outflow
         stp_vessels_radial_vessels_boundary_rate = radial_suc_inflows + radial_phAA_inflows + radial_xyAA_inflows
@@ -656,7 +686,7 @@ class RootCNUnified(*inheriting):
 
     def compute_root_system_C_content(self):
         segment_C_content = (6*self.props["C_hexose_root"].values_array()
-                             + 12*self.props["C_sucrose_root"].values_array()
+                             + 12*self.props["phloem_sucrose"].values_array()
                              + 6*self.props["C_hexose_reserve"].values_array()
                              + 5*65*self.props["storage_protein"].values_array()
                              + 5*self.props["AA"].values_array()

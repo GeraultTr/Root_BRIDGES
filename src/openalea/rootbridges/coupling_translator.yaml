@@ -64,6 +64,10 @@ RootCNUnified:
       thermal_time_since_emergence: 1.0
     amino_acids_consumption_by_growth:
       amino_acids_consumption_by_growth: 1.0
+    hexose_potential_demand_for_elongation:
+      hexose_potential_demand_for_elongation: 1.0
+    amino_acids_potential_demand_for_elongation:
+      amino_acids_potential_demand_for_elongation: 1.0
     vertex_index:
       vertex_index: 1.0
     total_living_struct_mass:
@@ -88,8 +92,12 @@ RootCNUnified:
       xylem_water: 1.0
     phloem_water:
       phloem_water: 1.0
+    xylem_pressure_in:
+      xylem_pressure_in: 1.0
 
   SoilModel:
+    soil_water_pressure:
+      water_potential_soil: 1.0
     C_hexose_soil:
       C_hexose_soil: 1.0
     Cs_cells_soil:
@@ -114,9 +122,7 @@ RootGrowthModelCoupled:
     root_tissue_density:
       root_tissue_density: 1.0
 
-  RootCNUnified:
-    nitrate_transporters_affinity_factor:
-      nitrate_transporters_affinity_factor: 1.0
+  RootCNUnified: {}
 
   RootGrowthModelCoupled: {}
 
@@ -125,6 +131,8 @@ RootGrowthModelCoupled:
   SoilModel:
     soil_temperature:
       soil_temperature: 1.0
+    soil_Nm:
+      C_mineralN_soil: 1.0
 
 
 RootWaterModel:

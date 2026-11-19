@@ -96,11 +96,11 @@ After the algebra the overwrite evaluates to **zero** for phloem solutes (becaus
 
 Under normal downward phloem flow `axial_export_water_up_phloem[root] < 0`, so this branch is not entered and the bug is dormant. It activates during transient phloem water reversal (e.g., early morning shoot pressure rise).
 
-**Fix**: guard the line-1529 overwrite so it does not execute for `C_sucrose_root` or `phloem_AA`:
+**Fix**: guard the line-1529 overwrite so it does not execute for `phloem_sucrose` or `phloem_AA`:
 
 ```python
 if boundary_from_reached_segments:
-    if name not in ("C_sucrose_root", "phloem_AA"):   # ← add this guard
+    if name not in ("phloem_sucrose", "phloem_AA"):   # ← add this guard
         props[cfg["solute_flux_to_shoot"]][1] = (n0.sum() + dt*R_total_actual.sum() − n_sol.sum()) / dt
 ```
 
@@ -162,7 +162,7 @@ When a lateral root emerges, `adding_a_child` is called with `identical_properti
 
 | property | declared default | typical mature value |
 |---|---|---|
-| `C_sucrose_root` | 1e-5 mol/g | ~1e-3 mol/g |
+| `phloem_sucrose` | 1e-5 mol/g | ~1e-3 mol/g |
 | `C_hexose_reserve` | 2e-3 mol/g | ~0.05 mol/g |
 | `phloem_AA` | 2e-3 mol/g | ~0.05 mol/g |
 | `xylem_AA` | 5e-7 mol/g | ~1e-4 mol/g |
@@ -200,7 +200,7 @@ A TODO comment at `root_growth.py` lines 2524-2525 explicitly flagged this gap: 
 In the `nil_properties=True` branch (after `AA=0.`):
 
 ```python
-C_sucrose_root=0.,
+phloem_sucrose=0.,
 C_hexose_reserve=0.,
 phloem_AA=0.,
 xylem_AA=0.,
@@ -210,7 +210,7 @@ storage_protein=0.,
 In the `identical_properties=True` branch (after `AA=mother_element.AA`):
 
 ```python
-C_sucrose_root=mother_element.C_sucrose_root,
+phloem_sucrose=mother_element.phloem_sucrose,
 C_hexose_reserve=mother_element.C_hexose_reserve,
 phloem_AA=mother_element.phloem_AA,
 xylem_AA=mother_element.xylem_AA,
@@ -224,6 +224,6 @@ storage_protein=mother_element.storage_protein,
 | priority | location | description | fix |
 |---|---|---|---|
 | **Critical** | `root_CN.py` ~550 | `incremental_deficit` subtracts previous step's deficit, making `expected_C` too low when deficits persist | use `current_deficit_amount` directly |
-| **Critical** | `root_growth.py` `adding_a_child` | CN-specific concentrations not copied to new lateral-root segments; fall back to defaults, causing ~7.5e-5 mol C jump at emergence steps | copy `C_sucrose_root`, `C_hexose_reserve`, `phloem_AA`, `xylem_AA`, `storage_protein` from mother element |
-| Secondary | `root_nitrogen.py` 1529 | overwrites collar exchange with 0 during phloem water reversal | guard with `if name not in ("C_sucrose_root", "phloem_AA")` |
+| **Critical** | `root_growth.py` `adding_a_child` | CN-specific concentrations not copied to new lateral-root segments; fall back to defaults, causing ~7.5e-5 mol C jump at emergence steps | copy `phloem_sucrose`, `C_hexose_reserve`, `phloem_AA`, `xylem_AA`, `storage_protein` from mother element |
+| Secondary | `root_nitrogen.py` 1529 | overwrites collar exchange with 0 during phloem water reversal | guard with `if name not in ("phloem_sucrose", "phloem_AA")` |
 | Minor | `root_CN.py` 566 | `and False` silences gap diagnostic | remove `and False` |

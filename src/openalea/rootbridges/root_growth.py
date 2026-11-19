@@ -24,12 +24,12 @@ class RootGrowthModelCoupled(*inheriting):
     """
     # INPUTS
     
-    nitrate_transporters_affinity_factor: float = declare(default=1., unit="mol.s-1", unit_comment="of nitrates", description="nitrate_transporters_affinity_factor, introduced to account for NRT1 signalling function when going through LATS regime", 
-                                                    min_value="", max_value="", value_comment="", references="Remans et al 2006", DOI="", 
-                                                    variable_type="input", by="model_nitrogen", state_variable_type="NonInertialIntensive", edit_by="user")
     adventitious_to_emerge: list = declare(default=None, unit="", unit_comment="", description="List of adventitous roots delays before emergence starting from current time step, length of list indicates the number to emerge", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="", 
                                                     variable_type="input", by="model_shoot", state_variable_type="descriptor", edit_by="user")
+    soil_Nm: float = declare(default=2.2, unit="mol.m-3", unit_comment="of nitrates", description="Soil solution nitrate concentration in contact with roots, used as local signal for lateral elongation",
+                                                    min_value="", max_value="", value_comment="", references="Fischer 1966", DOI="",
+                                                    variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
 
     # STATE VARIABLES
     growing_zone_amino_acids: float = declare(default=0., unit="mol.g-1", unit_comment="", description="Hexose availability in the growing zone", 
@@ -38,13 +38,22 @@ class RootGrowthModelCoupled(*inheriting):
     amino_acids_consumption_by_growth: float = declare(default=0., unit="mol.s-1", unit_comment="", description="amino_acids consumption rate by growth processes", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_growth", state_variable_type="extensive", edit_by="user")
+    hexose_potential_demand_for_elongation: float = declare(default=0., unit="mol.s-1", unit_comment="of hexose", description="Hexose demand of the apex potential elongation, spread over its supply zone by struct mass share",
+                                                    min_value="", max_value="", value_comment="", references="Sink strength set by apical diameter (Thaler & Pagès 1998; Pagès et al. 2014)", DOI="",
+                                                    variable_type="state_variable", by="model_growth", state_variable_type="extensive", edit_by="user")
+    amino_acids_potential_demand_for_elongation: float = declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="Amino acids demand of the apex potential elongation, spread over its supply zone by struct mass share",
+                                                    min_value="", max_value="", value_comment="", references="Sink strength set by apical diameter (Thaler & Pagès 1998; Pagès et al. 2014)", DOI="",
+                                                    variable_type="state_variable", by="model_growth", state_variable_type="extensive", edit_by="user")
     hexose_growth_regulation: float = declare(default=0., unit="dimensionless", unit_comment="", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_growth", state_variable_type="NonInertialIntensive", edit_by="user")
-    AA_growth_regulation: float = declare(default=0., unit="dimensionless", unit_comment="", description="", 
+    AA_growth_regulation: float = declare(default=0., unit="dimensionless", unit_comment="", description="",
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_growth", state_variable_type="NonInertialIntensive", edit_by="user")
-                                                    
+    nitrate_elongation_regulation: float = declare(default=1., unit="dimensionless", unit_comment="", description="Local external nitrate signal multiplying lateral root potential elongation (1 for axes)",
+                                                    min_value="", max_value="", value_comment="", references="NRT1.1-dependent local signal, independent of N nutrition (Hackett 1972; Remans et al. 2006; Krouk et al. 2010)", DOI="",
+                                                    variable_type="state_variable", by="model_growth", state_variable_type="NonInertialIntensive", edit_by="user")
+
     
     # PARAMETERS
     Km_elongation_amino_acids: float = declare(default=1250 * 1e-6 / 5, unit="mol.g-1", unit_comment="of amino_acids", description="Affinity constant for root elongation regarding amino_acids consumption",
@@ -70,6 +79,27 @@ class RootGrowthModelCoupled(*inheriting):
                                 variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
     C_AA_min_for_elongation: float = declare(default=0 * 1e-5 * (6 * 12 / 0.44) * 0.005 / 14 / 1.4 , unit="mol.g-1", unit_comment="in mol of hexose per g of structural mass", description="Treshold hexose concentration for thikening", 
                                                     min_value="", max_value="", value_comment="0 because not used in RhizoDep reference scenarios!", references="?", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    GD_scaled_by_diameter: bool = declare(default=True, unit="", unit_comment="", description="If True, lateral growth durations drawn by frequency classes are multiplied by (D / GD_reference_diameter)^2",
+                                                    min_value="", max_value="", value_comment="", references="GD proportional to D^2 (Pagès et al. 2014); length differences among laterals set by elongation duration (Ito et al. 2006)", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    GD_reference_diameter: float = declare(default=0.4e-3, unit="m", unit_comment="", description="Lateral tip diameter for which frequency-drawn growth durations are unchanged, set to the typical order-2 lateral diameter",
+                                                    min_value="", max_value="", value_comment="~ Dmin + RMD * (D_seminal - Dmin) = 0.122 + 0.57 * (0.6 - 0.122) mm; update if RMD changes", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    cancel_primordia_on_stopped_parent: bool = declare(default=True, unit="", unit_comment="", description="If True, lateral primordia not yet emerged stay dormant once the tip of their parent axis has stopped or died",
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    lateral_elongation_nitrate_regulation: bool = declare(default=True, unit="", unit_comment="", description="If True, lateral root potential elongation is multiplied by a saturating function of local soil nitrate",
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    lateral_elongation_nitrate_floor: float = declare(default=0.4, unit="adim", unit_comment="", description="Relative lateral elongation without external nitrate",
+                                                    min_value=0.4, max_value=0.65, value_comment="", references="Wheat laterals x1.9-2.9 longer with local nitrate vs N-free (Hackett 1972); x2 elongation rate in patch (Zhang et al. 1999)", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    lateral_elongation_nitrate_K: float = declare(default=0.3, unit="mol.m-3", unit_comment="of nitrate in soil solution", description="Soil nitrate concentration giving half of the lateral elongation response",
+                                                    min_value=0.1, max_value=1., value_comment="", references="NRT1.1 repression half-lifted at ~0.3 mM (Krouk et al. 2010); saturated by 0.5 mM (Remans et al. 2006)", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    lateral_elongation_nitrate_hill: float = declare(default=2., unit="adim", unit_comment="", description="Hill coefficient of the lateral elongation response to soil nitrate",
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
 
     # PARAMETERS
@@ -181,6 +211,8 @@ class RootGrowthModelCoupled(*inheriting):
         amino_acids_consumption_by_growth_amount = g.property("amino_acids_consumption_by_growth_amount")
         amino_acids_consumption_by_growth = g.property("amino_acids_consumption_by_growth")
         amino_acids_possibly_required_for_elongation = g.property("amino_acids_possibly_required_for_elongation")
+        hexose_potential_demand_for_elongation = g.property("hexose_potential_demand_for_elongation")
+        amino_acids_potential_demand_for_elongation = g.property("amino_acids_potential_demand_for_elongation")
         resp_growth = g.property("resp_growth")
         struct_mass_produced = g.property("struct_mass_produced")
         root_hairs_struct_mass_produced = g.property("root_hairs_struct_mass_produced")
@@ -218,6 +250,8 @@ class RootGrowthModelCoupled(*inheriting):
             amino_acids_consumption_by_growth_amount[v] = 0.
             amino_acids_consumption_by_growth[v] = 0.
             amino_acids_possibly_required_for_elongation[v] = 0.
+            hexose_potential_demand_for_elongation[v] = 0.
+            amino_acids_potential_demand_for_elongation[v] = 0.
             resp_growth[v] = 0.
             struct_mass_produced[v] = 0.
             root_hairs_struct_mass_produced[v] = 0.
@@ -436,13 +470,10 @@ class RootGrowthModelCoupled(*inheriting):
                     # And the potential elongation of the apex before growth stopped is calculated:
                     apex.potential_length = self.elongated_length(element=apex, initial_length=apex.length, radius=apex.radius,
                                                                   C_hexose_root=apex.growing_zone_C_hexose_root,
-                                                                  elongation_time_in_seconds=self.time_step_in_seconds * temperature_time_adjustment - apex.thermal_time_since_growth_stopped)
+                                                                  elongation_time_in_seconds=max(0., self.time_step_in_seconds * temperature_time_adjustment - apex.thermal_time_since_growth_stopped)) # GD may expire before this step for very short durations
                     # VERIFICATION:
                     if self.time_step_in_seconds * temperature_time_adjustment - apex.thermal_time_since_growth_stopped < 0.:
-                        print("!!! ERROR: The apex", apex._vid, "has stopped since",
-                              apex.actual_time_since_growth_stopped,
-                              "seconds; the time step is", self.time_step_in_seconds)
-                        print("We set the potential length of this apex equal to its initial length.")
+                        if debug: print("The apex", apex._vid, "has stopped since", apex.actual_time_since_growth_stopped, "seconds (GD expired before this step), potential length kept at initial length")
                         apex.potential_length = apex.initial_length
 
                     # The times are incremented:
@@ -579,6 +610,12 @@ class RootGrowthModelCoupled(*inheriting):
         # CASE 2: THE APEX CORRESPONDS TO THE PRIMORDIUM OF A POTENTIALLY EMERGING NORMAL LATERAL ROOT
         # ---------------------------------------------------------------------------------------------
         if p["type"][v] == self.type_Normal_root_before_emergence:
+            # Primordia left behind an arrested parent tip stay dormant (near-tip branching only after apex arrest, cf. wheat/rye 1RS lines, J Exp Bot 70:4027, 2019)
+            if self.cancel_primordia_on_stopped_parent and self.parent_axis_has_stopped(v):
+                p["actual_time_since_primordium_formation"][v] += time_step
+                p["thermal_time_since_primordium_formation"][v] += time_step * temperature_time_adjustment
+                new_apex_id.append(v)
+                return new_apex_id
             # If the time since primordium formation is higher than the delay of emergence:
             if p["thermal_time_since_primordium_formation"][v] + time_step * temperature_time_adjustment > self.emergence_delay:
                 # The time since primordium formation is incremented:
@@ -685,13 +722,10 @@ class RootGrowthModelCoupled(*inheriting):
                     # And the potential elongation of the apex before growth stopped is calculated:
                     p["potential_length"][v] = self.elongated_length_opt(p, v, initial_length=p["length"][v], radius=p["radius"][v],
                                                                   C_hexose_root=p["growing_zone_C_hexose_root"][v], amino_acids=p["growing_zone_amino_acids"][v],
-                                                                  elongation_time_in_seconds=time_step * temperature_time_adjustment - p["thermal_time_since_growth_stopped"][v])
+                                                                  elongation_time_in_seconds=max(0., time_step * temperature_time_adjustment - p["thermal_time_since_growth_stopped"][v])) # GD may expire before this step for very short durations
                     # VERIFICATION:
                     if time_step * temperature_time_adjustment - p["thermal_time_since_growth_stopped"][v] < 0.:
-                        print("!!! ERROR: The apex", v, "has stopped since",
-                              p["actual_time_since_growth_stopped"][v],
-                              "seconds; the time step is", time_step)
-                        print("We set the potential length of this apex equal to its initial length.")
+                        if debug: print("The apex", v, "has stopped since", p["actual_time_since_growth_stopped"][v], "seconds (GD expired before this step), potential length kept at initial length")
                         p["potential_length"][v] = p["initial_length"][v]
 
                     # The times are incremented:
@@ -787,6 +821,20 @@ class RootGrowthModelCoupled(*inheriting):
         return new_length
 
 
+    def parent_axis_has_stopped(self, v):
+        """True if the tip of the axis bearing primordium v has stopped or died."""
+        g = self.g
+        parent = g.Father(v, EdgeType='+')
+        if parent is None:
+            return False
+        tip = parent
+        child = g.Successor(tip)
+        while child is not None: # Follow the '<' successors up to the terminal apex of the parent axis
+            tip = child
+            child = g.Successor(tip)
+        tip_type = self.props["type"][tip]
+        return tip_type in (self.type_Stopped, self.type_Just_stopped, self.type_Dead, self.type_Just_dead)
+
     # Function for calculating root elongation:
     def elongated_length_opt(self, p, v, initial_length: float, radius: float, C_hexose_root: float, amino_acids:float, elongation_time_in_seconds: float):
         """
@@ -800,10 +848,22 @@ class RootGrowthModelCoupled(*inheriting):
         :return: the new elongated length
         """
 
+        # Local external nitrate signal on laterals only, independent of N nutrition (Hackett 1972; Krouk et al. 2010)
+        nitrate_factor = 1.
+        if self.lateral_elongation_nitrate_regulation and p["root_order"][v] > 1:
+            try:
+                soil_Nm = max(float(p["soil_Nm"][v]), 0.)
+            except KeyError:
+                soil_Nm = None # Not yet emerged, no soil state assigned
+            if soil_Nm is not None and np.isfinite(soil_Nm):
+                saturation = soil_Nm ** self.lateral_elongation_nitrate_hill / (soil_Nm ** self.lateral_elongation_nitrate_hill + self.lateral_elongation_nitrate_K ** self.lateral_elongation_nitrate_hill)
+                nitrate_factor = self.lateral_elongation_nitrate_floor + (1. - self.lateral_elongation_nitrate_floor) * saturation
+        p["nitrate_elongation_regulation"][v] = nitrate_factor
+
         # If we keep the classical ArchiSimple rule:
         if self.simple_growth_duration:
             # Then the elongation is calculated following the rules of Pages et al. (2014):
-            elongation = self.EL * 2. * radius * elongation_time_in_seconds
+            elongation = self.EL * 2. * radius * elongation_time_in_seconds * nitrate_factor
         else:
             # Otherwise, we additionally consider a limitation of the elongation according to the local concentration of hexose,
             # based on a Michaelis-Menten formalism:
@@ -812,7 +872,7 @@ class RootGrowthModelCoupled(*inheriting):
                 michaelis_menten_limitation = ((1-self.prop_C_from_amino_acids) * C_hexose_root / (C_hexose_root + self.Km_elongation)) + (self.prop_C_from_amino_acids * amino_acids / (amino_acids + self.Km_elongation_amino_acids))
                 if debug: print("MM", michaelis_menten_limitation)
                 # print("MM", michaelis_menten_limitation, ((1-self.prop_C_from_amino_acids) * C_hexose_root / (C_hexose_root + self.Km_elongation)), (self.prop_C_from_amino_acids * amino_acids / (amino_acids + self.Km_elongation_amino_acids)))
-                potential_elongation = self.EL * 2. * radius * elongation_time_in_seconds
+                potential_elongation = self.EL * 2. * radius * elongation_time_in_seconds * nitrate_factor
                 elongation = potential_elongation * michaelis_menten_limitation
             else:
                 # TP to make debugging more readable
@@ -1177,7 +1237,7 @@ class RootGrowthModelCoupled(*inheriting):
 
         # If the distance between the apex and the last emerged root is higher than the inter-primordia distance
         # AND if the potential radius is higher than the minimum diameter:
-        if apex.dist_to_ramif > self.IPD and potential_radius >= self.Dmin and potential_radius <= apex.radius:
+        if apex.dist_to_ramif > self.IPD and potential_radius >= self.Dmin / 2 and potential_radius <= apex.radius:
             # The distance that the tip of the apex has covered since the actual primordium formation is calculated:
             elongation_since_last_ramif = apex.dist_to_ramif - self.IPD
             # TODO: Is the third condition really relevant?
@@ -1205,17 +1265,16 @@ class RootGrowthModelCoupled(*inheriting):
                                         radius=potential_radius,
                                         identical_properties=False,
                                         nil_properties=True)
-            if apex.nitrate_transporters_affinity_factor is not None:
-                lateral_elongation_possibility = max(apex.nitrate_transporters_affinity_factor, 1)
-            else:
-                lateral_elongation_possibility = 1
 
             # We specifically recomputes the growth duration:
             if self.simple_growth_duration:
-                ramif.growth_duration = self.GDs * (2. * ramif.radius) ** 2 * lateral_elongation_possibility * self.main_roots_growth_extender
+                ramif.growth_duration = self.GDs * (2. * ramif.radius) ** 2
             else:
                 ramif.growth_duration = self.calculate_growth_duration(radius=ramif.radius, index=ramif._vid,
                                                                        root_order=ramif.root_order)
+                if self.GD_scaled_by_diameter:
+                    # Growth duration proportional to squared tip diameter (Pagès et al. 2014), order-2 typical diameter as reference
+                    ramif.growth_duration *= (2. * ramif.radius / self.GD_reference_diameter) ** 2
             # We specify the exact time since formation:
             ramif.actual_time_since_primordium_formation = actual_time_since_formation
             ramif.thermal_time_since_primordium_formation = actual_time_since_formation * temperature_time_adjustment
@@ -1810,7 +1869,23 @@ class RootGrowthModelCoupled(*inheriting):
                 list_of_elongation_supporting_elements_hexose = n.list_of_elongation_supporting_elements_hexose
                 list_of_elongation_supporting_elements_amino_acids = n.list_of_elongation_supporting_elements_amino_acids
                 list_of_elongation_supporting_elements_mass = n.list_of_elongation_supporting_elements_mass
-            
+
+                # Potential elongation demand, independent of local hexose, drives phloem unloading capacity (sink strength ∝ apex size, Thaler & Pagès 1998)
+                potential_elongation_volume = volume_from_radius_and_length(n, n.initial_radius, n.potential_length) - initial_volume
+                AA_potential_demand = max(0., potential_elongation_volume * n.root_tissue_density * self.struct_mass_N_content / self.yield_growth_N / self.r_Nm_AA)
+                hexose_potential_demand = max(0., (potential_elongation_volume * n.root_tissue_density * self.struct_mass_C_content / self.yield_growth
+                                                   - AA_potential_demand * self.r_C_AA) / 6.)
+                total_supply_mass = sum(list_of_elongation_supporting_elements_mass)
+                if total_supply_mass > 0.:
+                    for index, mass in zip(list_of_elongation_supporting_elements, list_of_elongation_supporting_elements_mass):
+                        supplying_element = g.node(index)
+                        supplying_element.hexose_potential_demand_for_elongation += hexose_potential_demand * mass / total_supply_mass / self.time_step_in_seconds
+                        supplying_element.amino_acids_potential_demand_for_elongation += AA_potential_demand * mass / total_supply_mass / self.time_step_in_seconds
+                else:
+                    # Empty supply zone (fully starved): the apex holds the demand itself
+                    n.hexose_potential_demand_for_elongation += hexose_potential_demand / self.time_step_in_seconds
+                    n.amino_acids_potential_demand_for_elongation += AA_potential_demand / self.time_step_in_seconds
+
             # If radial growth is possible:
             if n.potential_radius > n.radius:
                 # We only consider the amount of hexose immediately available in the element that can increase in radius:
@@ -2598,10 +2673,12 @@ class RootGrowthModelCoupled(*inheriting):
                                                  AA=0.,
                                                  amino_acids_consumption_by_growth_amount=0.,
                                                  amino_acids_consumption_by_growth=0.,
+                                                 hexose_potential_demand_for_elongation=0.,
+                                                 amino_acids_potential_demand_for_elongation=0.,
                                                  amino_acids_possibly_required_for_elongation=0.,
                                                  amino_acids_growth_demand=0.,
                                                  temperature_modification=0.,
-                                                 C_sucrose_root=0.,
+                                                 phloem_sucrose=0.,
                                                  C_hexose_reserve=0.,
                                                  phloem_AA=0.,
                                                  xylem_AA=0.,
@@ -2696,10 +2773,12 @@ class RootGrowthModelCoupled(*inheriting):
                                                  AA=mother_element.AA,
                                                  amino_acids_consumption_by_growth_amount=0.,
                                                  amino_acids_consumption_by_growth=0.,
+                                                 hexose_potential_demand_for_elongation=0.,
+                                                 amino_acids_potential_demand_for_elongation=0.,
                                                  amino_acids_possibly_required_for_elongation=0.,
                                                  amino_acids_growth_demand=0.,
                                                  temperature_modification=mother_element.temperature_modification,
-                                                 C_sucrose_root=mother_element.C_sucrose_root,
+                                                 phloem_sucrose=mother_element.phloem_sucrose,
                                                  C_hexose_reserve=mother_element.C_hexose_reserve,
                                                  phloem_AA=mother_element.phloem_AA,
                                                  xylem_AA=mother_element.xylem_AA,
